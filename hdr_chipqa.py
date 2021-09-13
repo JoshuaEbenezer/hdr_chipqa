@@ -330,7 +330,7 @@ def sts_fromvid(args):
     ws =csv_df["w"]
     hs = csv_df["h"]
     flag = 0
-    Parallel(n_jobs=5)(delayed(sts_fromfilename)(i,files,framenos_list,args.results_folder,use_csf=True) for i in range(len(files)))
+    Parallel(n_jobs=5)(delayed(sts_fromfilename)(i,files,framenos_list,args.results_folder,use_csf=False) for i in range(len(files)))
 #    sts_fromfilename(34,files,framenos_list,args.results_folder)
              
 
