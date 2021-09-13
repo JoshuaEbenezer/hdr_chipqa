@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 from utils.hdr_utils import hdr_yuv_read
+from utils.csf_utils import blockwise_csf,windows_csf
 from joblib import Parallel,delayed
 import numpy as np
 import cv2
@@ -107,7 +108,7 @@ def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
 
 
 
-def sts_fromfilename(i,filenames,framenos_list,results_folder):
+def sts_fromfilename(i,filenames,framenos_list,results_folder,use_csf=True):
     filename = filenames[i]
     name = os.path.basename(filename)
     print(name) 
@@ -213,10 +214,21 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder):
 
         
         Y_pq,_,_ = hdr_yuv_read(dis_file_object,framenum,h,w)
+        
+        
+
+
         count=count+1
         print(count)
 
         Y_pq = Y_pq.astype(np.float32)
+        
+
+        
+        if(use_csf):
+            #apply CSF
+            Y_pq = blockwise_csf(Y_pq)
+
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         gradient_x = cv2.Sobel(Y_pq,ddepth=-1,dx=1,dy=0)
         gradient_y = cv2.Sobel(Y_pq,ddepth=-1,dx=0,dy=1)
@@ -318,7 +330,7 @@ def sts_fromvid(args):
     ws =csv_df["w"]
     hs = csv_df["h"]
     flag = 0
-    Parallel(n_jobs=5)(delayed(sts_fromfilename)(i,files,framenos_list,args.results_folder) for i in range(len(files)))
+    Parallel(n_jobs=5)(delayed(sts_fromfilename)(i,files,framenos_list,args.results_folder,use_csf=True) for i in range(len(files)))
 #    sts_fromfilename(34,files,framenos_list,args.results_folder)
              
 
