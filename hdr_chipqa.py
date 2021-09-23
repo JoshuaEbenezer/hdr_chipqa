@@ -106,9 +106,53 @@ def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
     st_grad_dev = [sts_grad[i][1] for i in range(len(sts_grad))]
     return st_data,np.asarray(st_deviation),st_grad_data,np.asarray(st_grad_dev)
 
+def block_compute_lnl(block,lnl_method):
+    block = block.astype(np.float32)
+    avg_luminance = np.average(block.flatten()+1)
+    if(lnl_method=='nakarushton'):
+        block_transform =  block/(block+avg_luminance) #
+    elif(lnl_method=='sigmoid'):
+        block_transform = 1/(1+(np.exp(-(1e-3*(block-avg_luminance)))))
+    return block_transform
+
+def blockshaped(arr, nrows, ncols):
+    """
+    Return an array of shape (n, nrows, ncols) where
+    n * nrows * ncols = arr.size
+
+    If arr is a 2D array, the returned array should look like n subblocks with
+    each subblock preserving the "physical" layout of arr.
+    """
+    h, w = arr.shape
+    assert h % nrows == 0, "{} rows is not evenly divisble by {}".format(h, nrows)
+    assert w % ncols == 0, "{} cols is not evenly divisble by {}".format(w, ncols)
+    return (arr.reshape(h//nrows, nrows, -1, ncols)
+               .swapaxes(1,2)
+               .reshape(-1, nrows, ncols))
+
+def unblockshaped(arr, h, w):
+    """
+    Return an array of shape (h, w) where
+    h * w = arr.size
+
+    If arr is of shape (n, nrows, ncols), n sublocks of shape (nrows, ncols),
+    then the returned array preserves the "physical" layout of the sublocks.
+    """
+    n, nrows, ncols = arr.shape
+    return (arr.reshape(h//nrows, -1, nrows, ncols)
+               .swapaxes(1,2)
+               .reshape(h, w))
+
+def lnl(Y,lnl_method):
+    blocks = blockshaped(prevY_pq[:max_h,:max_w],h_win,w_win)
+    block_lnl = Parallel(n_jobs=20,verbose=10)(delayed(block_compute_lnl)(block) \
+            for block in blocks)
+    Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
+    return Y_lnl
 
 
-def sts_fromfilename(i,filenames,framenos_list,results_folder,use_csf=True):
+
+def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf=True,use_lnl=True):
     filename = filenames[i]
     name = os.path.basename(filename)
     print(name) 
@@ -123,6 +167,11 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,use_csf=True):
     # temporal filter
     avg_window = t*(1-a*t)*np.exp(-2*a*t)
     avg_window = np.flip(avg_window)
+
+    # SIZE of windows
+    h_win,w_win = 45,45
+    max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
+    xx, yy = np.mgrid[h_win//2:h-h_win//2:h_win, w_win//2:w-w_win//2:w_win].reshape(2,-1).astype(int)
 
 
     # LUT for coordinate search
@@ -225,6 +274,8 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,use_csf=True):
         
 
         
+        if(use_lnl):
+            Y_pq = lnl(Y_pq,lnl_method)
         if(use_csf):
             #apply CSF
             Y_pq = blockwise_csf(Y_pq)
@@ -322,7 +373,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,use_csf=True):
 
 
 def sts_fromvid(args):
-    csv_file = '../yuv_rw_info.csv'
+    csv_file = '/media/josh/nebula_josh/hdr/data_cleanup/fall2021_yuv_rw_info.csv'
     csv_df = pd.read_csv(csv_file)
     files = [os.path.join(args.input_folder,f) for f in csv_df["yuv"]]
     fps = csv_df["fps"]
@@ -330,7 +381,9 @@ def sts_fromvid(args):
     ws =csv_df["w"]
     hs = csv_df["h"]
     flag = 0
-    Parallel(n_jobs=5)(delayed(sts_fromfilename)(i,files,framenos_list,args.results_folder,use_csf=False) for i in range(len(files)))
+    Parallel(n_jobs=15)(delayed(sts_fromfilename)\
+            (i,files,framenos_list,args.results_folder,lnl_method='sigmoid',use_csf=False,use_lnl=True)\
+            for i in range(len(files)))
 #    sts_fromfilename(34,files,framenos_list,args.results_folder)
              
 
