@@ -39,7 +39,7 @@ def gen_gauss_window(lw, sigma):
     for ii in range(2 * lw + 1):
         weights[ii] /= sum
     return weights
-def compute_image_mscn_transform(image, C=1, avg_window=None, extend_mode='constant'):
+def compute_image_mscn_transform(image, C=1e-3, avg_window=None, extend_mode='constant'):
     if avg_window is None:
       avg_window = gen_gauss_window(3, 7.0/6.0)
     assert len(np.shape(image)) == 2
@@ -143,9 +143,7 @@ def unblockshaped(arr, h, w):
                .swapaxes(1,2)
                .reshape(h, w))
 
-def lnl(Y,lnl_method,h_win,w_win):
-    h,w = Y.shape
-    max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
+def lnl(Y,lnl_method,h_win,w_win,max_h,max_w):
     blocks = blockshaped(Y[:max_h,:max_w],h_win,w_win)
     block_lnl = Parallel(n_jobs=-20)(delayed(block_compute_lnl)(block,lnl_method) \
             for block in blocks)
@@ -206,20 +204,40 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
     prevY_pq = prevY_pq.astype(np.float32)
 
 
+    # ST chip centers and parameters
     step = st_time_length
     cy, cx = np.mgrid[step:h-step*4:step*4, step:w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
     dcy, dcx = np.mgrid[step:dsize[0]-step*4:step*4, step:dsize[1]-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
+    r1 = len(np.arange(step,h-step*4,step*4)) 
+    r2 = len(np.arange(step,w-step*4,step*4)) 
+    dr1 = len(np.arange(step,dsize[0]-step*4,step*4)) 
+    dr2 = len(np.arange(step,dsize[1]-step*4,step*4)) 
 
     
     prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
     if(use_lnl):
-        prevY_pq = lnl(prevY_pq,lnl_method,h_win,w_win)
-        prevY_pq_down = lnl(prevY_pq_down,lnl_method,h_win,w_win)
+
+        # lnl for the original frame
+        max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
+        prevY_pq = lnl(prevY_pq,lnl_method,h_win,w_win,max_h,max_w)
+
+        # lnl for the downsized frame
+        max_h_down,max_w_down = int((dsize[0]//h_win)*h_win),int((dsize[1]//w_win)*w_win)
+        prevY_pq_down = lnl(prevY_pq_down,lnl_method,h_win,w_win,max_h_down,max_w_down)
+
+        # point centers
+        cy, cx = np.mgrid[step:max_h-step*4:step*4, step:max_w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
+        dcy, dcx = np.mgrid[step:max_h_down-step*4:step*4, step:max_w_down-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
+        r1 = len(np.arange(step,max_h-step*4,step*4)) 
+        r2 = len(np.arange(step,max_w-step*4,step*4)) 
+        dr1 = len(np.arange(step,max_h_down-step*4,step*4)) 
+        dr2 = len(np.arange(step,max_w_down-step*4,step*4)) 
     if(use_csf):
         #apply CSF
         prevY_pq = blockwise_csf(prevY_pq)
         prevY_pq_down = blockwise_csf(prevY_pq_down)
 
+    print(prevY_pq.shape,prevY_pq_down.shape)
     img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
     grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
     down_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
@@ -247,14 +265,9 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
     graddown_img_buffer[i,:,:]=dgradY_mscn 
     i = i+1
 
-    r1 = len(np.arange(step,h-step*4,step*4)) 
-    r2 = len(np.arange(step,w-step*4,step*4)) 
-    dr1 = len(np.arange(step,dsize[0]-step*4,step*4)) 
-    dr2 = len(np.arange(step,dsize[1]-step*4,step*4)) 
     
     head, tail = os.path.split(filename)
 
-    
 
     
     spat_list = []
@@ -269,22 +282,17 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
         print(framenum)
         # uncomment for FLOPS
         #high.start_counters([events.PAPI_FP_OPS,])
-
         
         Y_pq,_,_ = hdr_yuv_read(dis_file_object,framenum,h,w)
         
         
-
-
-
         Y_pq = Y_pq.astype(np.float32)
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
-
         
         if(use_lnl):
-            Y_pq = lnl(Y_pq,lnl_method,h_win,w_win)
-            Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win)
+            Y_pq = lnl(Y_pq,lnl_method,h_win,w_win,max_h,max_w)
+            Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win,max_h_down,max_w_down)
         if(use_csf):
             #apply CSF
             Y_pq = blockwise_csf(Y_pq)
@@ -380,7 +388,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
 
 
 def sts_fromvid(args):
-    csv_file = '/media/josh/nebula_josh/hdr/data_cleanup/fall2021_yuv_rw_info.csv'
+    csv_file = './fall2021_yuv_rw_info.csv'
     csv_df = pd.read_csv(csv_file)
     files = [os.path.join(args.input_folder,f) for f in csv_df["yuv"]]
     fps = csv_df["fps"]
@@ -389,9 +397,10 @@ def sts_fromvid(args):
     hs = csv_df["h"]
     flag = 0
     Parallel(n_jobs=-10)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='sigmoid',use_csf=False,use_lnl=True)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=True)\
             for i in range(len(files)))
-#    sts_fromfilename(34,files,framenos_list,args.results_folder)
+#    for i in range(len(files)):
+#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=True)
              
 
 
