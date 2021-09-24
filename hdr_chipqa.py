@@ -143,19 +143,23 @@ def unblockshaped(arr, h, w):
                .swapaxes(1,2)
                .reshape(h, w))
 
-def lnl(Y,lnl_method):
-    blocks = blockshaped(prevY_pq[:max_h,:max_w],h_win,w_win)
-    block_lnl = Parallel(n_jobs=20,verbose=10)(delayed(block_compute_lnl)(block) \
+def lnl(Y,lnl_method,h_win,w_win):
+    h,w = Y.shape
+    max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
+    blocks = blockshaped(Y[:max_h,:max_w],h_win,w_win)
+    block_lnl = Parallel(n_jobs=-20)(delayed(block_compute_lnl)(block,lnl_method) \
             for block in blocks)
     Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
     return Y_lnl
 
 
 
-def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf=True,use_lnl=True):
+def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,use_csf=True,use_lnl=True):
     filename = filenames[i]
     name = os.path.basename(filename)
     print(name) 
+    w = ws[i]
+    h = hs[i]
     framenos = framenos_list[i]
     filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     if(os.path.exists(filename_out)):
@@ -170,7 +174,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
 
     # SIZE of windows
     h_win,w_win = 45,45
-    max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
     xx, yy = np.mgrid[h_win//2:h-h_win//2:h_win, w_win//2:w-w_win//2:w_win].reshape(2,-1).astype(int)
 
 
@@ -187,7 +190,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
     rst = rst.astype(np.int32)
 
     # SIZE of frames
-    h,w = 2160,3840 
     print(h,w)
     if(h>w):
         h_temp = h
@@ -201,7 +203,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
     # opening file object
     dis_file_object = open(filename)
     prevY_pq,_,_ = hdr_yuv_read(dis_file_object,0,h,w)
-    count=1
     prevY_pq = prevY_pq.astype(np.float32)
 
 
@@ -211,6 +212,13 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
 
     
     prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
+    if(use_lnl):
+        prevY_pq = lnl(prevY_pq,lnl_method,h_win,w_win)
+        prevY_pq_down = lnl(prevY_pq_down,lnl_method,h_win,w_win)
+    if(use_csf):
+        #apply CSF
+        prevY_pq = blockwise_csf(prevY_pq)
+        prevY_pq_down = blockwise_csf(prevY_pq_down)
 
     img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
     grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
@@ -258,6 +266,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
     j=0
     total_time = 0
     for framenum in range(1,framenos): 
+        print(framenum)
         # uncomment for FLOPS
         #high.start_counters([events.PAPI_FP_OPS,])
 
@@ -267,20 +276,20 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
         
 
 
-        count=count+1
-        print(count)
 
         Y_pq = Y_pq.astype(np.float32)
+        Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
 
         
         if(use_lnl):
-            Y_pq = lnl(Y_pq,lnl_method)
+            Y_pq = lnl(Y_pq,lnl_method,h_win,w_win)
+            Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win)
         if(use_csf):
             #apply CSF
             Y_pq = blockwise_csf(Y_pq)
+            Y_down_pq = blockwise_csf(Y_down_pq)
 
-        Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         gradient_x = cv2.Sobel(Y_pq,ddepth=-1,dx=1,dy=0)
         gradient_y = cv2.Sobel(Y_pq,ddepth=-1,dx=0,dy=1)
         gradient_mag = np.sqrt(gradient_x**2+gradient_y**2)    
@@ -310,7 +319,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
 
 
         feats = np.concatenate((gfeats,sigma_feats,dsigma_feats),axis=0)
-        print(feats.shape)
 
         feat_sd_list.append(feats)
         spatavg_list.append(feats)
@@ -350,7 +358,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,lnl_method,use_csf
 
 
             allst_feats = np.concatenate((spat_feats,feats,dfeats,grad_feats,dgrad_feats),axis=0)
-            print(allst_feats.shape)
             X_list.append(allst_feats)
 
 
@@ -381,8 +388,8 @@ def sts_fromvid(args):
     ws =csv_df["w"]
     hs = csv_df["h"]
     flag = 0
-    Parallel(n_jobs=15)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,lnl_method='sigmoid',use_csf=False,use_lnl=True)\
+    Parallel(n_jobs=-10)(delayed(sts_fromfilename)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='sigmoid',use_csf=False,use_lnl=True)\
             for i in range(len(files)))
 #    sts_fromfilename(34,files,framenos_list,args.results_folder)
              
