@@ -113,6 +113,10 @@ def block_compute_lnl(block,lnl_method):
         block_transform =  block/(block+avg_luminance) #
     elif(lnl_method=='sigmoid'):
         block_transform = 1/(1+(np.exp(-(1e-3*(block-avg_luminance)))))
+    elif(lnl_method=='logit'):
+        block_scaled = -0.99+1.98*(block-np.amin(block))/(np.amax(block)-np.amin(block))
+        block_transform = np.log((1+block_scaled**3)/(1-block_scaled**3))
+
     return block_transform
 
 def blockshaped(arr, nrows, ncols):
@@ -145,7 +149,7 @@ def unblockshaped(arr, h, w):
 
 def lnl(Y,lnl_method,h_win,w_win,max_h,max_w):
     blocks = blockshaped(Y[:max_h,:max_w],h_win,w_win)
-    block_lnl = Parallel(n_jobs=-20)(delayed(block_compute_lnl)(block,lnl_method) \
+    block_lnl = Parallel(n_jobs=-5,verbose=0)(delayed(block_compute_lnl)(block,lnl_method) \
             for block in blocks)
     Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
     return Y_lnl
@@ -279,7 +283,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
     j=0
     total_time = 0
     for framenum in range(1,framenos): 
-        print(framenum)
+#        print(framenum)
         # uncomment for FLOPS
         #high.start_counters([events.PAPI_FP_OPS,])
         
@@ -396,11 +400,11 @@ def sts_fromvid(args):
     ws =csv_df["w"]
     hs = csv_df["h"]
     flag = 0
-    Parallel(n_jobs=-10)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='sigmoid',use_csf=False,use_lnl=True)\
+    Parallel(n_jobs=10)(delayed(sts_fromfilename)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=True)\
             for i in range(len(files)))
 #    for i in range(len(files)):
-#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=True)
+#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=False)
              
 
 
