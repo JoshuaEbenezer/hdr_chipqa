@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 from joblib import dump,Parallel,delayed
+from numpy.core.shape_base import block
+from scipy.stats.morestats import yeojohnson
 from skimage.util.shape import view_as_blocks,view_as_windows
 from skimage.util import apply_parallel
 
@@ -11,6 +13,35 @@ f_max = 1/theta
 h_win = 45 
 w_win = 45 
 X =h_win/2160*1/1.5
+
+def blockshaped(arr, nrows, ncols):
+    """
+    Return an array of shape (n, nrows, ncols) where
+    n * nrows * ncols = arr.size
+
+    If arr is a 2D array, the returned array should look like n subblocks with
+    each subblock preserving the "physical" layout of arr.
+    """
+    h, w = arr.shape
+    assert h % nrows == 0, "{} rows is not evenly divisble by {}".format(h, nrows)
+    assert w % ncols == 0, "{} cols is not evenly divisble by {}".format(w, ncols)
+    return np.asarray(arr.reshape(h//nrows, nrows, -1, ncols)
+               .swapaxes(1,2)
+               .reshape(-1, nrows, ncols))
+
+def unblockshaped(arr, h, w):
+    """
+    Return an array of shape (h, w) where
+    h * w = arr.size
+
+    If arr is of shape (n, nrows, ncols), n sublocks of shape (nrows, ncols),
+    then the returned array preserves the "physical" layout of the sublocks.
+    """
+    n, nrows, ncols = arr.shape
+    return np.asarray(arr.reshape(h//nrows, -1, nrows, ncols)
+               .swapaxes(1,2)
+               .reshape(h, w))
+
 def gen_gauss_window(l=5, sig=1.):
     """\
     creates gaussian kernel with side length l and a sigma of sig
@@ -44,13 +75,16 @@ def blockwise_csf(y,adaptation='gaussian',h_win=h_win,w_win=w_win):
     '''
     Divides frame into non-overlapping blocks and applies Barten's CSF
     '''
-
+    
     max_h,max_w = round_down(y.shape[0],h_win),round_down(y.shape[1],w_win)
-    y_crop = y[:max_h,:max_w]
-    blocks_list = view_as_blocks(y_crop,(h_win,w_win))
-    blocks =np.reshape(blocks_list,(-1,blocks_list.shape[2],blocks_list.shape[3]))
+    y_crop = np.asarray(y[:max_h,:max_w])
+    print(y_crop.shape)
+    blocks = blockshaped(y_crop,h_win,w_win)
+    print(blocks.shape)
     block_csf = Parallel(n_jobs=-5,verbose=0)(delayed(csf_filter_block)(block=block,use_index=False,adaptation=adaptation,overlap=False) for block in blocks)
-    block_csf = np.reshape(block_csf,(max_h,max_w))
+    block_csf = np.asarray(block_csf)
+    print(block_csf.shape)
+    block_csf = unblockshaped(block_csf,max_h,max_w)
 
     return block_csf
 
