@@ -2,3 +2,6 @@
 /media/josh/seagate/fall21_hdr_yuv/4k_ref_Daylight1.yuv
 /media/josh/seagate/fall21_hdr_yuv/4k_ref_Chasing3.yuv
 /media/josh/seagate/fall21_hdr_yuv/4k_ref_Daylight1.yuv
+/media/josh-admin/nebula_josh/hdr/fall2021_hdr_upscaled_yuv/1080p_6M_CenterPanorama_upscaled.yuv
+/media/josh-admin/nebula_josh/hdr/fall2021_hdr_upscaled_yuv/1080p_6M_CargoBoat_upscaled.yuv
+/media/josh-admin/nebula_josh/hdr/fall2021_hdr_upscaled_yuv/1080p_1M_football6_upscaled.yuv

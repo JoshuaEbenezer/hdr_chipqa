@@ -18,6 +18,8 @@ import ChipQA.save_stats
 from numba import jit,prange
 import argparse
 
+os.nice(1)
+
 parser = argparse.ArgumentParser(description='Generate ChipQA features from a folder of videos and store them')
 parser.add_argument('--input_folder',help='Folder containing input videos')
 parser.add_argument('--results_folder',help='Folder where features are stored')
@@ -412,8 +414,8 @@ def sts_fromvid(args):
     fps = csv_df["fps"]
     framenos_list = csv_df["framenos"]
     flag = 0
-    Parallel(n_jobs=50)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=False)\
+    Parallel(n_jobs=20)(delayed(sts_fromfilename)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=True)\
             for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=False)
