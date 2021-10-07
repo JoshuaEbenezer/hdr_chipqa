@@ -1,2 +1,4 @@
 /media/josh/seagate/fall21_hdr_yuv/4k_ref_Chasing3.yuv
 /media/josh/seagate/fall21_hdr_yuv/4k_ref_Daylight1.yuv
+/media/josh/seagate/fall21_hdr_yuv/4k_ref_Chasing3.yuv
+/media/josh/seagate/fall21_hdr_yuv/4k_ref_Daylight1.yuv
