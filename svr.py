@@ -51,8 +51,8 @@ def results(all_preds,all_dmos):
 
 
 
-scores_df = pd.read_csv('./fall2021_yuv_rw_info.csv')
-video_names = scores_df['yuv']
+scores_df = pd.read_csv('/home/josh/hdr/score_gen/fall21_raw_avg_mos_dark_ambience.csv')
+video_names = scores_df['video']
 scores = scores_df['mos']
 print(len(scores_df['content'].unique()))
 srocc_list = []
@@ -66,14 +66,14 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/fall21_hdr_chipqa_pq_features'
+    feature_folder= './features/fall21_hdr_chipqa_pq_local_logit_45x45_patches'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
 #        if("Jockey" in vid or "Football" in vid):
 #            continue
 #        else:
-        featfile_name = os.path.splitext(os.path.basename(vid))[0]+'.z'
+        featfile_name = vid+'.z'
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
             
@@ -85,12 +85,12 @@ def trainval_split(trainval_content,r):
             train_features.append(feature)
             train_scores.append(score)
             train_indices.append(i)
-            train_names.append(scores_df.loc[i]['yuv'])
+            train_names.append(scores_df.loc[i]['video'])
             
         elif(scores_df.loc[i]['content'] in val):
             val_features.append(feature)
             val_scores.append(score)
-            val_names.append(scores_df.loc[i]['yuv'])
+            val_names.append(scores_df.loc[i]['video'])
 #    print('Train set')
 #    print(len(train_names))
 #    print('Validation set')

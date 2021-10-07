@@ -19,8 +19,10 @@ from numba import jit,prange
 import argparse
 
 parser = argparse.ArgumentParser(description='Generate ChipQA features from a folder of videos and store them')
-parser.add_argument('input_folder',help='Folder containing input videos')
-parser.add_argument('results_folder',help='Folder where features are stored')
+parser.add_argument('--input_folder',help='Folder containing input videos')
+parser.add_argument('--results_folder',help='Folder where features are stored')
+parser.add_argument('--upscaled', dest='upscaled', action='store_true')
+parser.set_defaults(upscaled=False)
 
 args = parser.parse_args()
 C=1
@@ -399,11 +401,16 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
 def sts_fromvid(args):
     csv_file = './fall2021_yuv_rw_info.csv'
     csv_df = pd.read_csv(csv_file)
-    files = [os.path.join(args.input_folder,f) for f in csv_df["yuv"]]
+    if(args.upscaled):
+        files = [os.path.join(args.input_folder,f[:-4]+'_upscaled.yuv') for f in csv_df["yuv"]]
+        ws = [3840]*len(csv_df)
+        hs = [2160]*len(csv_df)
+    else:
+        files = [os.path.join(args.input_folder,f) for f in csv_df["yuv"]]
+        ws =csv_df["w"]
+        hs = csv_df["h"]
     fps = csv_df["fps"]
     framenos_list = csv_df["framenos"]
-    ws =csv_df["w"]
-    hs = csv_df["h"]
     flag = 0
     Parallel(n_jobs=50)(delayed(sts_fromfilename)\
             (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=False)\
