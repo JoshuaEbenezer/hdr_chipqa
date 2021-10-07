@@ -114,7 +114,7 @@ def block_compute_lnl(block,lnl_method):
     elif(lnl_method=='sigmoid'):
         block_transform = 1/(1+(np.exp(-(1e-3*(block-avg_luminance)))))
     elif(lnl_method=='logit'):
-        block_scaled = -0.99+1.98*(block-np.amin(block))/(np.amax(block)-np.amin(block))
+        block_scaled = -0.99+1.98*(block-np.amin(block))/(1e-3+np.amax(block)-np.amin(block))
         block_transform = np.log((1+block_scaled**3)/(1-block_scaled**3))
 
     return block_transform
@@ -287,7 +287,13 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
         # uncomment for FLOPS
         #high.start_counters([events.PAPI_FP_OPS,])
         
-        Y_pq,_,_ = hdr_yuv_read(dis_file_object,framenum,h,w)
+        try:
+            Y_pq,_,_ = hdr_yuv_read(dis_file_object,framenum,h,w)
+        except:
+            f = open("chipqa_yuv_reading_error.txt", "a")
+            f.write(filename+"\n")
+            f.close()
+            break
         
         
         Y_pq = Y_pq.astype(np.float32)
@@ -359,7 +365,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
             dsts,dsts_deviation,dsts_grad,dsts_grad_deviation = find_kurtosis_sts(Ydown_3d_mscn,graddown3d_mscn,step,dcy,dcx,rst,rct,theta)
             sts_arr = np.reshape(sts,(r1*st_time_length,r2*st_time_length)) 
             sts_grad = np.reshape(sts_grad,(r1*st_time_length,r2*st_time_length))
-            print()
             dsts_arr = np.reshape(dsts,(dr1*st_time_length,dr2*st_time_length)) #(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
             dsts_grad = np.reshape(dsts_grad,(dr1*st_time_length,dr2*st_time_length))#(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
             feats =  ChipQA.save_stats.brisque(sts_arr)
@@ -400,8 +405,8 @@ def sts_fromvid(args):
     ws =csv_df["w"]
     hs = csv_df["h"]
     flag = 0
-    Parallel(n_jobs=10)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=True)\
+    Parallel(n_jobs=50)(delayed(sts_fromfilename)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=False)\
             for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=False)
