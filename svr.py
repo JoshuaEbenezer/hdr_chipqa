@@ -66,7 +66,7 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/fall21_hdr_chipqa_pq_local_logit_45x45_patches'
+    feature_folder= './features/fall21_hdr_chipqa_pq_upscaled_features'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
