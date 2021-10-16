@@ -51,7 +51,7 @@ def results(all_preds,all_dmos):
 
 
 
-scores_df = pd.read_csv('/home/josh/hdr/score_gen/fall21_raw_avg_mos_dark_ambience.csv')
+scores_df = pd.read_csv('/home/josh-admin/hdr/score_gen/fall21_raw_avg_mos_dark_ambience.csv')
 video_names = scores_df['video']
 scores = scores_df['mos']
 print(len(scores_df['content'].unique()))
@@ -73,7 +73,7 @@ def trainval_split(trainval_content,r):
 #        if("Jockey" in vid or "Football" in vid):
 #            continue
 #        else:
-        featfile_name = vid+'.z'
+        featfile_name = vid+'_upscaled.z'
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
             
