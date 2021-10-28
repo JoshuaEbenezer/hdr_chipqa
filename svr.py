@@ -51,7 +51,7 @@ def results(all_preds,all_dmos):
 
 
 
-scores_df = pd.read_csv('/home/josh-admin/hdr/score_gen/fall21_raw_avg_mos_dark_ambience.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/fall21_raw_avg_mos_dark_ambience.csv')
 video_names = scores_df['video']
 scores = scores_df['mos']
 print(len(scores_df['content'].unique()))
@@ -67,6 +67,7 @@ def trainval_split(trainval_content,r):
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
     feature_folder= './features/fall21_hdr_chipqa_pq_upscaled_features'
+    feature_folder2= './features/fall21_hdr_chipqa_global_logit_upscaled'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -75,9 +76,14 @@ def trainval_split(trainval_content,r):
 #        else:
         featfile_name = vid+'_upscaled.z'
         score = scores[i]
-        feat_file = load(os.path.join(feature_folder,featfile_name))
+#        feat_file = load(os.path.join(feature_folder,featfile_name))
+        feat_file2 = load(os.path.join(feature_folder2,featfile_name))
             
-        feature = np.asarray(feat_file['features'],dtype=np.float32)
+#        feature1 = np.asarray(feat_file['features'],dtype=np.float32)
+        feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
+        feature = feature2 #[0:32]
+#        feature = np.concatenate((feature1[0:117],feature2[117:189]),axis=0)
+#        feature = np.concatenate((feat_file['features'],feat_file2['features']))
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)

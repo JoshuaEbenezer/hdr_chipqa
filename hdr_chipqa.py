@@ -15,7 +15,7 @@ import sys
 import matplotlib.pyplot as plt
 import ChipQA.niqe 
 import ChipQA.save_stats
-from numba import jit,prange
+from numba import jit,prange,njit
 import argparse
 
 os.nice(1)
@@ -110,6 +110,15 @@ def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
     st_grad_dev = [sts_grad[i][1] for i in range(len(sts_grad))]
     return st_data,np.asarray(st_deviation),st_grad_data,np.asarray(st_grad_dev)
 
+@njit
+def logit(x,delta):
+        y = np.log((1+(x)**delta)/(1-(x)**delta))
+        return y
+def transform(x,delta):
+    y = x.copy()
+    y[x<-0.5] = logit(x[x<-0.5],delta)-logit(-0.5,delta)-0.5
+    y[x>0.5] = logit(x[x>0.5],delta)-logit(0.5,delta)+0.5
+    return y
 def block_compute_lnl(block,lnl_method):
     block = block.astype(np.float32)
     avg_luminance = np.average(block.flatten()+1)
@@ -118,10 +127,24 @@ def block_compute_lnl(block,lnl_method):
     elif(lnl_method=='sigmoid'):
         block_transform = 1/(1+(np.exp(-(1e-3*(block-avg_luminance)))))
     elif(lnl_method=='logit'):
+        delta = 2 
         block_scaled = -0.99+1.98*(block-np.amin(block))/(1e-3+np.amax(block)-np.amin(block))
-        block_transform = np.log((1+block_scaled**3)/(1-block_scaled**3))
+        block_transform = np.log((1+(block_scaled)**delta)/(1-(block_scaled)**delta))
+        if(delta%2==0):
+            block_transform[block<0] = -block_transform[block<0] 
+    elif(lnl_method=='exp'):
+        delta = 1
+        block = -4+(block-np.amin(block))* 8/(1e-3+np.amax(block)-np.amin(block))
+        block_transform =  np.exp(np.abs(block)**delta)-1
+        block_transform[block<0] = -block_transform[block<0]
+    elif(lnl_method=='custom'):
+        block = -0.99+(block-np.amin(block))* 1.98/(1e-3+np.amax(block)-np.amin(block))
+        block_transform = transform(block,5)
+
 
     return block_transform
+
+
 
 def blockshaped(arr, nrows, ncols):
     """
@@ -151,16 +174,19 @@ def unblockshaped(arr, h, w):
                .swapaxes(1,2)
                .reshape(h, w))
 
-def lnl(Y,lnl_method,h_win,w_win,max_h,max_w):
-    blocks = blockshaped(Y[:max_h,:max_w],h_win,w_win)
-    block_lnl = Parallel(n_jobs=-5,verbose=0)(delayed(block_compute_lnl)(block,lnl_method) \
-            for block in blocks)
-    Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
+def lnl(Y,lnl_method,h_win,w_win,max_h,max_w,use_global=False):
+    if(use_global):
+        Y_lnl = block_compute_lnl(Y,lnl_method)
+    else:
+        blocks = blockshaped(Y[:max_h,:max_w],h_win,w_win)
+        block_lnl = Parallel(n_jobs=-5,verbose=0)(delayed(block_compute_lnl)(block,lnl_method) \
+                for block in blocks)
+        Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
     return Y_lnl
 
 
 
-def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,use_csf=True,use_lnl=True):
+def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,use_csf=True,use_lnl=True,use_global=True):
     filename = filenames[i]
     name = os.path.basename(filename)
     print(name) 
@@ -227,11 +253,11 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
 
         # lnl for the original frame
         max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
-        prevY_pq = lnl(prevY_pq,lnl_method,h_win,w_win,max_h,max_w)
+        prevY_pq = lnl(prevY_pq,lnl_method,h_win,w_win,max_h,max_w,use_global)
 
         # lnl for the downsized frame
         max_h_down,max_w_down = int((dsize[0]//h_win)*h_win),int((dsize[1]//w_win)*w_win)
-        prevY_pq_down = lnl(prevY_pq_down,lnl_method,h_win,w_win,max_h_down,max_w_down)
+        prevY_pq_down = lnl(prevY_pq_down,lnl_method,h_win,w_win,max_h_down,max_w_down,use_global)
 
         # point centers
         cy, cx = np.mgrid[step:max_h-step*4:step*4, step:max_w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
@@ -305,8 +331,8 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
         
         
         if(use_lnl):
-            Y_pq = lnl(Y_pq,lnl_method,h_win,w_win,max_h,max_w)
-            Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win,max_h_down,max_w_down)
+            Y_pq = lnl(Y_pq,lnl_method,h_win,w_win,max_h,max_w,use_global)
+            Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win,max_h_down,max_w_down,use_global)
         if(use_csf):
             #apply CSF
             Y_pq = blockwise_csf(Y_pq)
@@ -415,7 +441,7 @@ def sts_fromvid(args):
     framenos_list = csv_df["framenos"]
     flag = 0
     Parallel(n_jobs=20)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=True)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='custom',use_csf=False,use_lnl=True,use_global=True)\
             for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=False)
