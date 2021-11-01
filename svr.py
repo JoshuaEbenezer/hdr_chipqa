@@ -66,8 +66,8 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/fall21_hdr_chipqa_pq_upscaled_features'
-    feature_folder2= './features/fall21_hdr_chipqa_global_logit_upscaled'
+#    feature_folder= './features/fall21_hdr_chipqa_pq_upscaled_features'
+    feature_folder2= './features/chipqa_custom_logitlnl_delta5_features'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -81,7 +81,7 @@ def trainval_split(trainval_content,r):
             
 #        feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
-        feature = feature2 #[0:32]
+        feature = feature2
 #        feature = np.concatenate((feature1[0:117],feature2[117:189]),axis=0)
 #        feature = np.concatenate((feat_file['features'],feat_file2['features']))
         feature = np.nan_to_num(feature)

@@ -440,7 +440,7 @@ def sts_fromvid(args):
     fps = csv_df["fps"]
     framenos_list = csv_df["framenos"]
     flag = 0
-    Parallel(n_jobs=20)(delayed(sts_fromfilename)\
+    Parallel(n_jobs=30)(delayed(sts_fromfilename)\
             (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='custom',use_csf=False,use_lnl=True,use_global=True)\
             for i in range(len(files)))
 #    for i in range(len(files)):
