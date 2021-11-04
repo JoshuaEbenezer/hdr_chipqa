@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 
-scores_df = pd.read_csv('../fall21_hdr_score_analysis/fall21_mos_and_dmos_rawavg.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/fall21_mos_and_dmos_rawavg.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 
@@ -41,7 +41,7 @@ def single_run_svr(r):
         score = scores[i]
         feature1 = np.asarray(load(os.path.join(feature_folder,featfile_name))['features'],dtype=np.float32)
         feature2 = np.asarray(load(os.path.join(feature_folder2,featfile_name))['features'],dtype=np.float32)
-        feature = feature1
+        feature = np.concatenate((feature1,feature2),axis=0)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
@@ -108,4 +108,4 @@ print(nscores,npreds)
 plt.scatter(nscores,npreds)
 plt.xlabel('MOS')
 plt.ylabel('Prediction')
-plt.savefig('./images/scatter_plots/fall21_hdr_chipqa_pq_upscaled_features.png')
+plt.savefig('./images/scatter_plots/fall21_hdr_chipqa_pq_and_logit.png')
