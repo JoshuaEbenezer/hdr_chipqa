@@ -27,7 +27,6 @@ import glob
 
 def results(all_preds,all_dmos):
     all_preds = np.asarray(all_preds)
-    print(np.max(all_preds),np.min(all_preds))
     all_preds[np.isnan(all_preds)]=0
     all_dmos = np.asarray(all_dmos)
 
@@ -40,13 +39,13 @@ def results(all_preds,all_dmos):
     preds_srocc = spearmanr(preds_fitted,all_dmos)
     preds_lcc = pearsonr(preds_fitted,all_dmos)
     preds_rmse = np.sqrt(np.mean(preds_fitted-all_dmos)**2)
-    print('SROCC:')
-    print(preds_srocc[0])
-    print('LCC:')
-    print(preds_lcc[0])
-    print('RMSE:')
-    print(preds_rmse)
-    print(len(all_preds),' videos were read')
+#    print('SROCC:')
+#    print(preds_srocc[0])
+#    print('LCC:')
+#    print(preds_lcc[0])
+#    print('RMSE:')
+#    print(preds_rmse)
+#    print(len(all_preds),' videos were read')
     return preds_srocc[0],preds_lcc[0],preds_rmse
 
 
@@ -66,8 +65,9 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/fall21_hdr_chipqa_pq_upscaled_features'
-    feature_folder2= './features/hdr_chipqa_pq_global_sigmoid_upscaled'
+    feature_folder= './features/fall21_hdr_chipqa_global_logit_upscaled'
+    feature_folder2= './features/jzazbz_chipqa_chroma_features'
+    feature_folder3= './features/fall21_hdr_chipqa_pq_upscaled_features'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -78,11 +78,13 @@ def trainval_split(trainval_content,r):
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+        feat_file3 = load(os.path.join(feature_folder3,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
+        feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 #        feature = feature2
-        feature = np.concatenate((feature1,feature2),axis=0)
+        feature = np.concatenate((feature1,feature2,feature3),axis=0)
 #        feature = np.concatenate((feature1[32:40],feature1[72:80],feature2[32:40],feature2[72:80]),axis=0)
 #        feature = np.concatenate((feat_file['features'],feat_file2['features']))
         feature = np.nan_to_num(feature)
