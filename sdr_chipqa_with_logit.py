@@ -10,18 +10,16 @@ import scipy.ndimage
 import joblib
 import sys
 import matplotlib.pyplot as plt
-import niqe 
-import save_stats
-from numba import jit,prange
+import ChipQA.niqe
+import ChipQA.save_stats
+from numba import njit,jit,prange
 import argparse
-from pypapi import events, papi_high as high
 
 parser = argparse.ArgumentParser(description='Generate ChipQA features from a folder of videos and store them')
 parser.add_argument('input_folder',help='Folder containing input videos')
 parser.add_argument('results_folder',help='Folder where features are stored')
 
 args = parser.parse_args()
-C=1
 def gen_gauss_window(lw, sigma):
     sd = np.float32(sigma)
     lw = int(lw)
@@ -37,7 +35,7 @@ def gen_gauss_window(lw, sigma):
     for ii in range(2 * lw + 1):
         weights[ii] /= sum
     return weights
-def compute_image_mscn_transform(image, C=1, avg_window=None, extend_mode='constant'):
+def compute_image_mscn_transform(image, C=1e-3, avg_window=None, extend_mode='constant'):
     if avg_window is None:
       avg_window = gen_gauss_window(3, 7.0/6.0)
     assert len(np.shape(image)) == 2
@@ -118,18 +116,19 @@ def sts_fromfilename(i,filenames,results_folder):
     filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     st_time_length = 5
     t = np.arange(0,st_time_length)
-    a=0.25
+    a=0.5
     avg_window = t*(1-a*t)*np.exp(-2*a*t)
     avg_window = np.flip(avg_window)
     cap = cv2.VideoCapture(filename)
     count=1
     ret, prev = cap.read()
-    print(ret)
                     #percent by which the image is resized
     scale_percent = 0.5
 #
     theta = np.arange(0,np.pi,np.pi/6)
-    print(len(theta))
+
+    C = 1e-3
+
     ct = np.cos(theta)
     st = np.sin(theta)
     lower_r = int((st_time_length+1)/2)-1
@@ -153,7 +152,6 @@ def sts_fromfilename(i,filenames,results_folder):
 
     # dsize
     dsize = (int(scale_percent*h),int(scale_percent*w))
-    print(h,w,dsize)
 
     step = st_time_length
     cy, cx = np.mgrid[step:h-step*4:step*4, step:w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
@@ -179,10 +177,10 @@ def sts_fromfilename(i,filenames,results_folder):
     gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
     i = 0
 
-    Y_mscn,_,_ = compute_image_mscn_transform(prevY)
-    dY_mscn,_,_ = compute_image_mscn_transform(prevY_down)
-    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag)
-    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down)
+    Y_mscn,_,_ = compute_image_mscn_transform(prevY,C)
+    dY_mscn,_,_ = compute_image_mscn_transform(prevY_down,C)
+    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
+    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
 
     img_buffer[i,:,:] = Y_mscn
     down_img_buffer[i,:,:]= dY_mscn
@@ -219,7 +217,6 @@ def sts_fromfilename(i,filenames,results_folder):
         
         ret,bgr = cap.read()
         count=count+1
-        print(count)
         if(ret==False):
             count=count-1
             break
@@ -227,7 +224,7 @@ def sts_fromfilename(i,filenames,results_folder):
         lab = lab.astype(np.float32)
         lab[:,:,1] = logit(lab[:,:,1],3)
         lab[:,:,2] = logit(lab[:,:,2],3)
-        chroma_feats = save_stats.chroma_feats(lab)
+        chroma_feats = ChipQA.save_stats.chroma_feats(lab)
 
         Y = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
         Y = Y.astype(np.float32)
@@ -246,22 +243,22 @@ def sts_fromfilename(i,filenames,results_folder):
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
 
-        Y_mscn,Ysigma,_ = compute_image_mscn_transform(Y)
-        dY_mscn,dYsigma,_ = compute_image_mscn_transform(Y_down)
+        Y_mscn,Ysigma,_ = compute_image_mscn_transform(Y,C)
+        dY_mscn,dYsigma,_ = compute_image_mscn_transform(Y_down,C)
 
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down)
+        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
+        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
 
-        gradient_feats = save_stats.extract_secondord_feats(gradY_mscn)
-        gdown_feats = save_stats.extract_secondord_feats(dgradY_mscn)
+        gradient_feats = ChipQA.save_stats.extract_secondord_feats(gradY_mscn)
+        gdown_feats = ChipQA.save_stats.extract_secondord_feats(dgradY_mscn)
         gfeats = np.concatenate((gradient_feats,gdown_feats),axis=0)
 
         
-        Ysigma_mscn,_,_= compute_image_mscn_transform(Ysigma)
-        dYsigma_mscn,_,_= compute_image_mscn_transform(dYsigma)
+        Ysigma_mscn,_,_= compute_image_mscn_transform(Ysigma,C)
+        dYsigma_mscn,_,_= compute_image_mscn_transform(dYsigma,C)
 
-        sigma_feats = save_stats.stat_feats(Ysigma_mscn)
-        dsigma_feats = save_stats.stat_feats(dYsigma_mscn)
+        sigma_feats = ChipQA.save_stats.stat_feats(Ysigma_mscn)
+        dsigma_feats = ChipQA.save_stats.stat_feats(dYsigma_mscn)
 
 
         feats = np.concatenate((chroma_feats,gfeats,sigma_feats,dsigma_feats),axis=0)
@@ -283,7 +280,7 @@ def sts_fromfilename(i,filenames,results_folder):
             Ydown_3d_mscn = spatiotemporal_mscn(down_img_buffer,avg_window)
             grad3d_mscn = spatiotemporal_mscn(grad_img_buffer,avg_window)
             graddown3d_mscn = spatiotemporal_mscn(graddown_img_buffer,avg_window)
-            spat_feats = niqe.compute_niqe_features(Y)
+            spat_feats = ChipQA.niqe.compute_niqe_features(Y)
 
             sd_feats = np.std(feat_sd_list,axis=0)
             sd_list.append(sd_feats)
@@ -293,18 +290,16 @@ def sts_fromfilename(i,filenames,results_folder):
             dsts,dsts_deviation,dsts_grad,dsts_grad_deviation = find_kurtosis_sts(Ydown_3d_mscn,graddown3d_mscn,step,dcy,dcx,rst,rct,theta)
             sts_arr = np.reshape(sts,(r1*st_time_length,r2*st_time_length)) 
             sts_grad = np.reshape(sts_grad,(r1*st_time_length,r2*st_time_length))
-            print()
             dsts_arr = np.reshape(dsts,(dr1*st_time_length,dr2*st_time_length)) #(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
             dsts_grad = np.reshape(dsts_grad,(dr1*st_time_length,dr2*st_time_length))#(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
-            feats =  save_stats.brisque(sts_arr)
-            grad_feats = save_stats.brisque(sts_grad)
+            feats =  ChipQA.save_stats.brisque(sts_arr)
+            grad_feats = ChipQA.save_stats.brisque(sts_grad)
             
-            dfeats =  save_stats.brisque(dsts_arr)
-            dgrad_feats = save_stats.brisque(dsts_grad)
+            dfeats =  ChipQA.save_stats.brisque(dsts_arr)
+            dgrad_feats = ChipQA.save_stats.brisque(dsts_grad)
 
 
             allst_feats = np.concatenate((spat_feats,feats,dfeats,grad_feats,dgrad_feats),axis=0)
-            print(allst_feats.shape)
             X_list.append(allst_feats)
 
 
@@ -331,7 +326,7 @@ def sts_fromvid(args):
     print(sorted(filenames))
     filenames = sorted(filenames)
     flag = 0
-    Parallel(n_jobs=-5)(delayed(sts_fromfilename)(i,filenames,args.results_folder) for i in range(len(filenames)))
+    Parallel(n_jobs=15)(delayed(sts_fromfilename)(i,filenames,args.results_folder) for i in range(len(filenames)))
 #    sts_fromfilename(34,filenames,args.results_folder)
              
 
