@@ -32,7 +32,7 @@ def block_compute_lnl(block,lnl_method):
     elif(lnl_method=='sigmoid'):
         block_transform = 1/(1+(np.exp(-(1e-3*(block-avg_luminance)))))
     elif(lnl_method=='logit'):
-        delta = 2 
+        delta = 3 
         block_scaled = -0.99+1.98*(block-np.amin(block))/(1e-3+np.amax(block)-np.amin(block))
         block_transform = np.log((1+(block_scaled)**delta)/(1-(block_scaled)**delta))
         if(delta%2==0):
@@ -64,6 +64,11 @@ def blockshaped(arr, nrows, ncols):
                .swapaxes(1,2)
                .reshape(-1, nrows, ncols))
 
+def transform(x,delta):
+    y = x.copy()
+    y[x<-0.5] = logit(x[x<-0.5],delta)-logit(-0.5,delta)-0.5
+    y[x>0.5] = logit(x[x>0.5],delta)-logit(0.5,delta)+0.5
+    return y
 def unblockshaped(arr, h, w):
     """
     Return an array of shape (h, w) where
@@ -86,9 +91,9 @@ def lnl(Y,lnl_method,h_win,w_win):
     Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
     return Y_lnl
 
-def logit(Y):
+def logit(Y,delta):
     Y = -0.99+(Y-np.amin(Y))* 1.98/(1e-3+np.amax(Y)-np.amin(Y))
-    Y_transform = np.log((1+(Y)**3)/(1-(Y)**3))
+    Y_transform = np.log((1+(Y)**delta)/(1-(Y)**delta))
     return Y_transform
 
 
@@ -127,7 +132,7 @@ def niqe_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,use_linear 
             y_pq_normalized = Y.astype(np.float32)/1023.0
             Y = eotf_PQ_BT2100(y_pq_normalized)      
         if(use_gnl):
-            Y  = block_compute_lnl(Y,lnl_method='sigmoid')
+            Y  = block_compute_lnl(Y,lnl_method='custom')
         i=i+1
         niqe_features = ChipQA.niqe.compute_niqe_features(Y)
         niqe_list.append(niqe_features)

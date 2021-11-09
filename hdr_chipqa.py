@@ -248,6 +248,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
     dr2 = len(np.arange(step,dsize[1]-step*4,step*4)) 
 
     
+    C = 1
     prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
     if(use_lnl):
 
@@ -288,10 +289,10 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
     gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
     i = 0
 
-    Y_mscn,_,_ = compute_image_mscn_transform(prevY_pq)
-    dY_mscn,_,_ = compute_image_mscn_transform(prevY_pq_down)
-    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag)
-    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down)
+    Y_mscn,_,_ = compute_image_mscn_transform(prevY_pq,C)
+    dY_mscn,_,_ = compute_image_mscn_transform(prevY_pq_down,C)
+    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
+    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
 
     img_buffer[i,:,:] = Y_mscn
     down_img_buffer[i,:,:]= dY_mscn
@@ -333,6 +334,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
         if(use_lnl):
             Y_pq = lnl(Y_pq,lnl_method,h_win,w_win,max_h,max_w,use_global)
             Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win,max_h_down,max_w_down,use_global)
+            C = 1e-3
         if(use_csf):
             #apply CSF
             Y_pq = blockwise_csf(Y_pq)
@@ -348,19 +350,19 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
 
-        Y_mscn,Ysigma,_ = compute_image_mscn_transform(Y_pq)
-        dY_mscn,dYsigma,_ = compute_image_mscn_transform(Y_down_pq)
+        Y_mscn,Ysigma,_ = compute_image_mscn_transform(Y_pq,C)
+        dY_mscn,dYsigma,_ = compute_image_mscn_transform(Y_down_pq,C)
 
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down)
+        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
+        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
 
         gradient_feats = ChipQA.save_stats.extract_secondord_feats(gradY_mscn)
         gdown_feats = ChipQA.save_stats.extract_secondord_feats(dgradY_mscn)
         gfeats = np.concatenate((gradient_feats,gdown_feats),axis=0)
 
         
-        Ysigma_mscn,_,_= compute_image_mscn_transform(Ysigma)
-        dYsigma_mscn,_,_= compute_image_mscn_transform(dYsigma)
+        Ysigma_mscn,_,_= compute_image_mscn_transform(Ysigma,C)
+        dYsigma_mscn,_,_= compute_image_mscn_transform(dYsigma,C)
 
         sigma_feats = ChipQA.save_stats.stat_feats(Ysigma_mscn)
         dsigma_feats = ChipQA.save_stats.stat_feats(dYsigma_mscn)
@@ -385,7 +387,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
             Ydown_3d_mscn = spatiotemporal_mscn(down_img_buffer,avg_window)
             grad3d_mscn = spatiotemporal_mscn(grad_img_buffer,avg_window)
             graddown3d_mscn = spatiotemporal_mscn(graddown_img_buffer,avg_window)
-            spat_feats = ChipQA.niqe.compute_niqe_features(Y_pq)
+            spat_feats = ChipQA.niqe.compute_niqe_features(Y_pq,C=C)
 
             sd_feats = np.std(feat_sd_list,axis=0)
             sd_list.append(sd_feats)
@@ -441,7 +443,7 @@ def sts_fromvid(args):
     framenos_list = csv_df["framenos"]
     flag = 0
     Parallel(n_jobs=30)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=True,use_global=True)\
+            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=False,use_global=False)\
             for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=False)
