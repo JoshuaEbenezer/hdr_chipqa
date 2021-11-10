@@ -114,6 +114,8 @@ def sts_fromfilename(i,filenames,results_folder):
     name = os.path.basename(filename)
     print(name) 
     filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
+    if(os.path.exists(filename_out)):
+        return
     st_time_length = 5
     t = np.arange(0,st_time_length)
     a=0.5
@@ -280,7 +282,7 @@ def sts_fromfilename(i,filenames,results_folder):
             Ydown_3d_mscn = spatiotemporal_mscn(down_img_buffer,avg_window)
             grad3d_mscn = spatiotemporal_mscn(grad_img_buffer,avg_window)
             graddown3d_mscn = spatiotemporal_mscn(graddown_img_buffer,avg_window)
-            spat_feats = ChipQA.niqe.compute_niqe_features(Y)
+            spat_feats = ChipQA.niqe.compute_niqe_features(Y,C)
 
             sd_feats = np.std(feat_sd_list,axis=0)
             sd_list.append(sd_feats)
@@ -316,8 +318,7 @@ def sts_fromfilename(i,filenames,results_folder):
     X3 = np.average(X_list,axis=0)
     X = np.concatenate((X1,X2,X3),axis=0)
     train_dict = {"features":X}
-    filename_out =os.path.join(os.path.splitext(name)[0]+'.z')
-    joblib.dump(train_dict,os.path.join(results_folder,filename_out))
+    joblib.dump(train_dict,filename_out)
     return
 
 
