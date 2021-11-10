@@ -109,41 +109,56 @@ def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
     st_grad_data = [sts_grad[i][0] for i in range(len(sts_grad))]
     st_grad_dev = [sts_grad[i][1] for i in range(len(sts_grad))]
     return st_data,np.asarray(st_deviation),st_grad_data,np.asarray(st_grad_dev)
-
-@njit
-def logit(x,delta):
-        y = np.log((1+(x)**delta)/(1-(x)**delta))
-        return y
-def transform(x,delta):
-    y = x.copy()
-    y[x<-0.5] = logit(x[x<-0.5],delta)-logit(-0.5,delta)-0.5
-    y[x>0.5] = logit(x[x>0.5],delta)-logit(0.5,delta)+0.5
-    return y
-def block_compute_lnl(block,lnl_method):
-    block = block.astype(np.float32)
-    avg_luminance = np.average(block.flatten()+1)
-    if(lnl_method=='nakarushton'):
-        block_transform =  block/(block+avg_luminance) #
-    elif(lnl_method=='sigmoid'):
-        block_transform = 1/(1+(np.exp(-(1e-3*(block-avg_luminance)))))
-    elif(lnl_method=='logit'):
+def Y_compute_gnl(Y,gnl_method):
+    Y = Y.astype(np.float32)
+    if(gnl_method=='nakarushton'):
+        Y_transform =  Y/(Y+avg_luminance) #
+    elif(gnl_method=='sigmoid'):
+        Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
+    elif(gnl_method=='logit'):
         delta = 2 
-        block_scaled = -0.99+1.98*(block-np.amin(block))/(1e-3+np.amax(block)-np.amin(block))
-        block_transform = np.log((1+(block_scaled)**delta)/(1-(block_scaled)**delta))
+        Y_scaled = -0.99+1.98*(Y-np.amin(Y))/(1e-3+np.amax(Y)-np.amin(Y))
+        Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
         if(delta%2==0):
-            block_transform[block<0] = -block_transform[block<0] 
-    elif(lnl_method=='exp'):
+            Y_transform[Y<0] = -Y_transform[Y<0] 
+    elif(gnl_method=='exp'):
+        delta = 3
+        Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
+        Y_transform =  np.exp(np.abs(Y)**delta)-1
+        Y_transform[Y<0] = -Y_transform[Y<0]
+    elif(gnl_method=='custom'):
+        Y = -0.99+(Y-np.amin(Y))* 1.98/(1e-3+np.amax(Y)-np.amin(Y))
+        Y_transform = transform(Y,5)
+
+
+    return Y_transform
+
+def Y_compute_lnl(Y,nl_method):
+    Y = Y.astype(np.float32)
+
+    if(nl_method=='logit'):
+        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
+        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
         delta = 1
-        block = -4+(block-np.amin(block))* 8/(1e-3+np.amax(block)-np.amin(block))
-        block_transform =  np.exp(np.abs(block)**delta)-1
-        block_transform[block<0] = -block_transform[block<0]
-    elif(lnl_method=='custom'):
-        block = -0.99+(block-np.amin(block))* 1.98/(1e-3+np.amax(block)-np.amin(block))
-        block_transform = transform(block,5)
-
-
-    return block_transform
-
+        Y_scaled = -0.99+1.98*(Y-minY)/(1e-3+maxY-minY)
+        Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
+        if(delta%2==0):
+            Y_transform[Y<0] = -Y_transform[Y<0] 
+    elif(nl_method=='exp'):
+        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
+        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
+        delta = 3
+        Y = -4+(Y-minY)* 8/(1e-3+maxY-minY)
+        Y_transform =  np.exp(np.abs(Y)**delta)-1
+        Y_transform[Y<0] = -Y_transform[Y<0]
+    elif(nl_method=='custom'):
+        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
+        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
+        Y = -0.99+(Y-minY)* 1.98/(1e-3+maxY-minY)
+        Y_transform = transform(Y,5)
+    elif(nl_method=='sigmoid'):
+        avg_luminance = scipy.ndimage.gaussian_filter(Y,sigma=7.0/6.0)
+        Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
 
 
 def blockshaped(arr, nrows, ncols):
@@ -174,19 +189,9 @@ def unblockshaped(arr, h, w):
                .swapaxes(1,2)
                .reshape(h, w))
 
-def lnl(Y,lnl_method,h_win,w_win,max_h,max_w,use_global=False):
-    if(use_global):
-        Y_lnl = block_compute_lnl(Y,lnl_method)
-    else:
-        blocks = blockshaped(Y[:max_h,:max_w],h_win,w_win)
-        block_lnl = Parallel(n_jobs=-5,verbose=0)(delayed(block_compute_lnl)(block,lnl_method) \
-                for block in blocks)
-        Y_lnl = unblockshaped(np.asarray(block_lnl),max_h,max_w)
-    return Y_lnl
 
 
-
-def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,use_csf=True,use_lnl=True,use_global=True):
+def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,gnl_method,use_csf=True,use_lnl=True,use_global=True):
     filename = filenames[i]
     name = os.path.basename(filename)
     print(name) 
@@ -250,23 +255,22 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
     
     C = 1
     prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
-    if(use_lnl):
+    if(use_gnl):
 
-        # lnl for the original frame
-        max_h,max_w = int((h//h_win)*h_win),int((w//w_win)*w_win)
-        prevY_pq = lnl(prevY_pq,lnl_method,h_win,w_win,max_h,max_w,use_global)
+        # gnl for the original frame
+        prevY_pq = Y_compute_gnl(prevY_pq,nl_method)
 
-        # lnl for the downsized frame
-        max_h_down,max_w_down = int((dsize[0]//h_win)*h_win),int((dsize[1]//w_win)*w_win)
-        prevY_pq_down = lnl(prevY_pq_down,lnl_method,h_win,w_win,max_h_down,max_w_down,use_global)
+        # gnl for the downsized frame
+#        max_h_down,max_w_down = int((dsize[0]//h_win)*h_win),int((dsize[1]//w_win)*w_win)
+        prevY_pq_down = gnl(prevY_pq_down,nl_method,h_win,w_win,max_h_down,max_w_down,use_global)
 
-        # point centers
-        cy, cx = np.mgrid[step:max_h-step*4:step*4, step:max_w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
-        dcy, dcx = np.mgrid[step:max_h_down-step*4:step*4, step:max_w_down-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
-        r1 = len(np.arange(step,max_h-step*4,step*4)) 
-        r2 = len(np.arange(step,max_w-step*4,step*4)) 
-        dr1 = len(np.arange(step,max_h_down-step*4,step*4)) 
-        dr2 = len(np.arange(step,max_w_down-step*4,step*4)) 
+#        # point centers
+#        cy, cx = np.mgrid[step:max_h-step*4:step*4, step:max_w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
+#        dcy, dcx = np.mgrid[step:max_h_down-step*4:step*4, step:max_w_down-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
+#        r1 = len(np.arange(step,max_h-step*4,step*4)) 
+#        r2 = len(np.arange(step,max_w-step*4,step*4)) 
+#        dr1 = len(np.arange(step,max_h_down-step*4,step*4)) 
+#        dr2 = len(np.arange(step,max_w_down-step*4,step*4)) 
     if(use_csf):
         #apply CSF
         prevY_pq = blockwise_csf(prevY_pq)
@@ -331,9 +335,9 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,lnl_method,u
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
         
-        if(use_lnl):
-            Y_pq = lnl(Y_pq,lnl_method,h_win,w_win,max_h,max_w,use_global)
-            Y_down_pq = lnl(Y_down_pq,lnl_method,h_win,w_win,max_h_down,max_w_down,use_global)
+        if(use_gnl):
+            Y_pq = Y_compute_gnl(Y_pq,nl_method)
+            Y_down_pq = Y_compute_gnl(Y_down_pq,nl_method)
             C = 1e-3
         if(use_csf):
             #apply CSF
@@ -443,10 +447,10 @@ def sts_fromvid(args):
     framenos_list = csv_df["framenos"]
     flag = 0
     Parallel(n_jobs=30)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,lnl_method='logit',use_csf=False,use_lnl=False,use_global=False)\
+            (i,files,framenos_list,args.results_folder,ws,hs,gnl_method='logit',use_csf=False,use_lnl=False,use_global=False)\
             for i in range(len(files)))
 #    for i in range(len(files)):
-#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,lnl_method='nakarushton',use_csf=False,use_lnl=False)
+#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,gnl_method='nakarushton',use_csf=False,use_lnl=False)
              
 
 
