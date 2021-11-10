@@ -109,37 +109,37 @@ def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
     st_grad_data = [sts_grad[i][0] for i in range(len(sts_grad))]
     st_grad_dev = [sts_grad[i][1] for i in range(len(sts_grad))]
     return st_data,np.asarray(st_deviation),st_grad_data,np.asarray(st_grad_dev)
-def Y_compute_gnl(Y,gnl_method):
+def Y_compute_gnl(Y,nl_method,nl_param):
     Y = Y.astype(np.float32)
-    if(gnl_method=='nakarushton'):
+    if(nl_method=='nakarushton'):
         Y_transform =  Y/(Y+avg_luminance) #
-    elif(gnl_method=='sigmoid'):
+    elif(nl_method=='sigmoid'):
         Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
-    elif(gnl_method=='logit'):
+    elif(nl_method=='logit'):
         delta = 2 
         Y_scaled = -0.99+1.98*(Y-np.amin(Y))/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
         if(delta%2==0):
             Y_transform[Y<0] = -Y_transform[Y<0] 
-    elif(gnl_method=='exp'):
+    elif(nl_method=='exp'):
         delta = 3
         Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
-    elif(gnl_method=='custom'):
+    elif(nl_method=='custom'):
         Y = -0.99+(Y-np.amin(Y))* 1.98/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform = transform(Y,5)
 
 
     return Y_transform
 
-def Y_compute_lnl(Y,nl_method):
+def Y_compute_lnl(Y,nl_method,nl_param):
     Y = Y.astype(np.float32)
 
     if(nl_method=='logit'):
         maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
         minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = 1
+        delta = nl_param
         Y_scaled = -0.99+1.98*(Y-minY)/(1e-3+maxY-minY)
         Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
         if(delta%2==0):
@@ -147,7 +147,7 @@ def Y_compute_lnl(Y,nl_method):
     elif(nl_method=='exp'):
         maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
         minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = 3
+        delta = nl_param
         Y = -4+(Y-minY)* 8/(1e-3+maxY-minY)
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
@@ -159,6 +159,7 @@ def Y_compute_lnl(Y,nl_method):
     elif(nl_method=='sigmoid'):
         avg_luminance = scipy.ndimage.gaussian_filter(Y,sigma=7.0/6.0)
         Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
+    return Y_transform
 
 
 def blockshaped(arr, nrows, ncols):
@@ -191,7 +192,7 @@ def unblockshaped(arr, h, w):
 
 
 
-def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,gnl_method,use_csf=True,use_lnl=True,use_global=True):
+def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl_param, use_csf=True,use_gnl=True,use_lnl=True):
     filename = filenames[i]
     name = os.path.basename(filename)
     print(name) 
@@ -258,11 +259,11 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,gnl_method,u
     if(use_gnl):
 
         # gnl for the original frame
-        prevY_pq = Y_compute_gnl(prevY_pq,nl_method)
+        prevY_pq = Y_compute_gnl(prevY_pq,nl_method,nl_param)
 
         # gnl for the downsized frame
 #        max_h_down,max_w_down = int((dsize[0]//h_win)*h_win),int((dsize[1]//w_win)*w_win)
-        prevY_pq_down = gnl(prevY_pq_down,nl_method,h_win,w_win,max_h_down,max_w_down,use_global)
+        prevY_pq_down =Y_compute_gnl(prevY_pq_down,nl_method,nl_param)
 
 #        # point centers
 #        cy, cx = np.mgrid[step:max_h-step*4:step*4, step:max_w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
@@ -271,7 +272,10 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,gnl_method,u
 #        r2 = len(np.arange(step,max_w-step*4,step*4)) 
 #        dr1 = len(np.arange(step,max_h_down-step*4,step*4)) 
 #        dr2 = len(np.arange(step,max_w_down-step*4,step*4)) 
-    if(use_csf):
+    elif(use_lnl):
+        prevY_pq = Y_compute_lnl(prevY_pq,nl_method,nl_param)
+        prevY_pq_down =Y_compute_lnl(prevY_pq_down,nl_method,nl_param)
+    elif(use_csf):
         #apply CSF
         prevY_pq = blockwise_csf(prevY_pq)
         prevY_pq_down = blockwise_csf(prevY_pq_down)
@@ -336,10 +340,14 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,gnl_method,u
         
         
         if(use_gnl):
-            Y_pq = Y_compute_gnl(Y_pq,nl_method)
-            Y_down_pq = Y_compute_gnl(Y_down_pq,nl_method)
+            Y_pq = Y_compute_gnl(Y_pq,nl_method,nl_param)
+            Y_down_pq = Y_compute_gnl(Y_down_pq,nl_method,nl_param)
             C = 1e-3
-        if(use_csf):
+        elif(use_lnl):
+            Y_pq = Y_compute_lnl(Y_pq,nl_method,nl_param)
+            Y_down_pq =Y_compute_lnl(Y_down_pq,nl_method,nl_param)
+            C = 1e-3
+        elif(use_csf):
             #apply CSF
             Y_pq = blockwise_csf(Y_pq)
             Y_down_pq = blockwise_csf(Y_down_pq)
@@ -446,11 +454,16 @@ def sts_fromvid(args):
     fps = csv_df["fps"]
     framenos_list = csv_df["framenos"]
     flag = 0
-    Parallel(n_jobs=30)(delayed(sts_fromfilename)\
-            (i,files,framenos_list,args.results_folder,ws,hs,gnl_method='logit',use_csf=False,use_lnl=False,use_global=False)\
-            for i in range(len(files)))
+    
+    for delta in [1,2,3]:
+        outfolder = './features/chipqa_local_exp'+str(delta)
+        if(os.path.exists(outfolder)==False):
+            os.mkdir(outfolder)
+        Parallel(n_jobs=30)(delayed(sts_fromfilename)\
+                (i,files,framenos_list,outfolder,ws,hs,nl_method='exp',nl_param=delta, use_csf=False,use_gnl=False,use_lnl=True)\
+                for i in range(len(files)))
 #    for i in range(len(files)):
-#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,gnl_method='nakarushton',use_csf=False,use_lnl=False)
+#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='nakarushton',use_csf=False,use_lnl=False)
              
 
 
