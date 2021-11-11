@@ -455,12 +455,12 @@ def sts_fromvid(args):
     framenos_list = csv_df["framenos"]
     flag = 0
     
-    for delta in [1,2,3]:
+    for delta in [1,2]:
         outfolder = './features/chipqa_local_exp'+str(delta)
         if(os.path.exists(outfolder)==False):
             os.mkdir(outfolder)
-        Parallel(n_jobs=30)(delayed(sts_fromfilename)\
-                (i,files,framenos_list,outfolder,ws,hs,nl_method='exp',nl_param=delta, use_csf=False,use_gnl=False,use_lnl=True)\
+        Parallel(n_jobs=1)(delayed(sts_fromfilename)\
+                (i,files,framenos_list,args.results_folder,ws,hs,nl_method='exp',nl_param=delta, use_csf=False,use_gnl=False,use_lnl=False)\
                 for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='nakarushton',use_csf=False,use_lnl=False)

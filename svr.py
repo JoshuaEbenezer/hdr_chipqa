@@ -65,8 +65,8 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/fall21_hdr_chipqa_global_logit_upscaled'
-    feature_folder2= './features/jzazbz_chipqa_chroma_features'
+    feature_folder= './features/chipqa_with_correct_niqe_custom_delta5'
+    feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
     feature_folder3= './features/fall21_hdr_chipqa_pq_upscaled_features'
     train_names = []
     val_names = [] 
@@ -84,7 +84,7 @@ def trainval_split(trainval_content,r):
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 #        feature = feature2
-        feature = np.concatenate((feature1,feature2,feature3),axis=0)
+        feature = np.concatenate((feature1,feature2),axis=0)
 #        feature = np.concatenate((feature1[32:40],feature1[72:80],feature2[32:40],feature2[72:80]),axis=0)
 #        feature = np.concatenate((feat_file['features'],feat_file2['features']))
         feature = np.nan_to_num(feature)
@@ -197,7 +197,7 @@ def only_test(r):
 #only_test(0)
 #srocc_list = train_test(0) 
 #print(srocc_list)
-srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(100))
+srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(1000))
 ##srocc_list = np.nan_to_num(srocc_list)
 print("median srocc is")
 print(np.median([s[0] for s in srocc_list]))
