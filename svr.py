@@ -27,6 +27,7 @@ import glob
 
 def results(all_preds,all_dmos):
     all_preds = np.asarray(all_preds)
+    print(np.max(all_preds),np.min(all_preds))
     all_preds[np.isnan(all_preds)]=0
     all_dmos = np.asarray(all_dmos)
 
@@ -39,18 +40,18 @@ def results(all_preds,all_dmos):
     preds_srocc = spearmanr(preds_fitted,all_dmos)
     preds_lcc = pearsonr(preds_fitted,all_dmos)
     preds_rmse = np.sqrt(np.mean(preds_fitted-all_dmos)**2)
-#    print('SROCC:')
-#    print(preds_srocc[0])
-#    print('LCC:')
-#    print(preds_lcc[0])
-#    print('RMSE:')
-#    print(preds_rmse)
-#    print(len(all_preds),' videos were read')
+    print('SROCC:')
+    print(preds_srocc[0])
+    print('LCC:')
+    print(preds_lcc[0])
+    print('RMSE:')
+    print(preds_rmse)
+    print(len(all_preds),' videos were read')
     return preds_srocc[0],preds_lcc[0],preds_rmse
 
 
 
-scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/fall21_data.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/fall21_mos_and_dmos_rawavg.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 print(len(scores_df['content'].unique()))
@@ -65,9 +66,8 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/fall21_hdr_chipqa_global_logit_upscaled'
-    feature_folder2= './features/jzazbz_chipqa_chroma_features'
-    feature_folder3= './features/fall21_hdr_chipqa_pq_upscaled_features'
+    feature_folder= './features/brisque_linear_logit_csf_mscn_features'
+    feature_folder2= './features/brisque_pq_upscaled_features'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -75,18 +75,16 @@ def trainval_split(trainval_content,r):
 #            continue
 #        else:
         featfile_name = vid+'_upscaled.z'
-        score = scores[i]
-        feat_file = load(os.path.join(feature_folder,featfile_name))
-        feat_file2 = load(os.path.join(feature_folder2,featfile_name))
-        feat_file3 = load(os.path.join(feature_folder3,featfile_name))
+        try:
+            feat_file = load(os.path.join(feature_folder,featfile_name))
+            feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+            score = scores[i]
+        except:
+            continue
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
-        feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
-#        feature = feature2
-        feature = np.concatenate((feature1,feature2,feature3),axis=0)
-#        feature = np.concatenate((feature1[32:40],feature1[72:80],feature2[32:40],feature2[72:80]),axis=0)
-#        feature = np.concatenate((feat_file['features'],feat_file2['features']))
+        feature = np.concatenate((feature1,feature2),axis=0)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
@@ -106,39 +104,36 @@ def trainval_split(trainval_content,r):
 #    print(len(val_names))
     return np.asarray(train_features),train_scores,np.asarray(val_features),val_scores,train
 
-def single_split(trainval_content,cv_index,gamma,C):
+def single_split(trainval_content,cv_index,C):
 
     train_features,train_scores,val_features,val_scores,_ = trainval_split(trainval_content,cv_index)
-    clf = svm.SVR(gamma=gamma,C=C)
-    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
-    #scaler = StandardScaler()
+    clf = svm.SVR(kernel='linear',C=C)
+    scaler = StandardScaler()
     X_train = scaler.fit_transform(train_features)
     X_test = scaler.transform(val_features)
     clf.fit(X_train,train_scores)
     return clf.score(X_test,val_scores)
-def grid_search(gamma_list,C_list,trainval_content):
+def grid_search(C_list,trainval_content):
     best_score = -100
     best_C = C_list[0]
-    best_gamma = gamma_list[0]
-    for gamma in gamma_list:
-        for C in C_list:
-            cv_score = Parallel(n_jobs=-1)(delayed(single_split)(trainval_content,cv_index,gamma,C) for cv_index in range(5))
-            avg_cv_score = np.average(cv_score)
-            if(avg_cv_score>best_score):
-                best_score = avg_cv_score
-                best_C = C
-                best_gamma = gamma
-    return best_C,best_gamma
+    for C in C_list:
+        cv_score = Parallel(n_jobs=-1)(delayed(single_split)(trainval_content,cv_index,C) for cv_index in range(5))
+        avg_cv_score = np.average(cv_score)
+        if(avg_cv_score>best_score):
+            best_score = avg_cv_score
+            best_C = C
+    return best_C
 
 def train_test(r):
     train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
-    best_C,best_gamma = grid_search(np.logspace(-7,2,10),np.logspace(1,10,10,base=2),trainval_content)
+    best_C= grid_search(np.logspace(1,10,10,base=2),trainval_content)
 
-    scaler = MinMaxScaler(feature_range=(-1,1))  
+#    scaler = MinMaxScaler(feature_range=(-1,1))  
+    scaler = StandardScaler()
     scaler.fit(train_features)
     X_train = scaler.transform(train_features)
     X_test = scaler.transform(test_features)
-    best_svr =SVR(gamma=best_gamma,C=best_C) 
+    best_svr =SVR(kernel='linear',C=best_C) 
     best_svr.fit(X_train,train_scores)
     preds = best_svr.predict(X_test)
     srocc,lcc,rmse = results(preds,test_scores)
@@ -149,7 +144,7 @@ def only_train(r):
     all_scores = np.concatenate((train_scores,test_scores),axis=0) 
     scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
     X_train = scaler.fit_transform(all_features)
-    grid_svr = GridSearchCV(svm.SVR(),param_grid = {"gamma":np.logspace(-8,1,10),"C":np.logspace(1,10,10,base=2)},cv=5)
+    grid_svr = GridSearchCV(svm.SVR(kernel='linear'),param_grid = {"C":np.logspace(1,10,10,base=2)},cv=5)
     grid_svr.fit(X_train, all_scores)
     preds = grid_svr.predict(X_train)
     srocc_test = spearmanr(preds,all_scores)
