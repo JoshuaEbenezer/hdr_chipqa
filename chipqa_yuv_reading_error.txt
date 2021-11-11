@@ -136,6 +136,7 @@
 /mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/1080p_1M_Light4_upscaled.yuv
 /mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/1080p_1M_Chasing1_upscaled.yuv
 /mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/1080p_1M_football10_upscaled.yuv
+<<<<<<< HEAD
 /media/josh/seagate/hdr_videos/fall2021_hdr_upscaled_yuv/1080p_1M_Bonfire_upscaled.yuv
 /media/josh/seagate/hdr_videos/fall2021_hdr_upscaled_yuv/1080p_1M_Bonfire_upscaled.yuv
 /media/josh/seagate/hdr_videos/fall2021_hdr_upscaled_yuv/1080p_1M_Chasing3_upscaled.yuv
@@ -193,3 +194,14 @@
 /media/josh/seagate/hdr_videos/fall2021_hdr_upscaled_yuv/4k_15M_golf2_upscaled.yuv
 /media/josh/seagate/hdr_videos/fall2021_hdr_upscaled_yuv/4k_15M_football8_upscaled.yuv
 /media/josh/seagate/hdr_videos/fall2021_hdr_upscaled_yuv/4k_15M_CargoBoat_upscaled.yuv
+=======
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Chasing3_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Chasing4_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Chasing1_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Daylight1_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Light2_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Light3_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Light4_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Chasing3_upscaled.yuv
+/mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/4k_ref_Chasing4_upscaled.yuv
+>>>>>>> b14d10c5ba77428f9a9a3e28335ced09bbdb7ce9
