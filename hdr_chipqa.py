@@ -116,13 +116,13 @@ def Y_compute_gnl(Y,nl_method,nl_param):
     elif(nl_method=='sigmoid'):
         Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
     elif(nl_method=='logit'):
-        delta = 2 
+        delta = nl_param 
         Y_scaled = -0.99+1.98*(Y-np.amin(Y))/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
         if(delta%2==0):
             Y_transform[Y<0] = -Y_transform[Y<0] 
     elif(nl_method=='exp'):
-        delta = 3
+        delta = nl_param
         Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
@@ -194,8 +194,7 @@ def unblockshaped(arr, h, w):
 
 def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl_param, use_csf=True,use_gnl=True,use_lnl=True):
     filename = filenames[i]
-    if(os.path.exists(filename)==False):
-        print('file does not exist')
+    if('ref' in filename):
         return
     name = os.path.basename(filename)
     print(name) 
@@ -458,7 +457,7 @@ def sts_fromvid(args):
     framenos_list = csv_df["framenos"]
     flag = 0
     
-    for delta in [1]:
+    for delta in [1,2]:
         outfolder = './features/chipqa_global_logit'+str(delta)
         if(os.path.exists(outfolder)==False):
             os.mkdir(outfolder)
