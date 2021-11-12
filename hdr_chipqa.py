@@ -194,6 +194,9 @@ def unblockshaped(arr, h, w):
 
 def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl_param, use_csf=True,use_gnl=True,use_lnl=True):
     filename = filenames[i]
+    if(os.path.exists(filename)==False):
+        print('file does not exist')
+        return
     name = os.path.basename(filename)
     print(name) 
     w = ws[i]
@@ -455,12 +458,12 @@ def sts_fromvid(args):
     framenos_list = csv_df["framenos"]
     flag = 0
     
-    for delta in [1,2]:
-        outfolder = './features/chipqa_local_exp'+str(delta)
+    for delta in [1]:
+        outfolder = './features/chipqa_global_logit'+str(delta)
         if(os.path.exists(outfolder)==False):
             os.mkdir(outfolder)
-        Parallel(n_jobs=1)(delayed(sts_fromfilename)\
-                (i,files,framenos_list,args.results_folder,ws,hs,nl_method='exp',nl_param=delta, use_csf=False,use_gnl=False,use_lnl=False)\
+        Parallel(n_jobs=20)(delayed(sts_fromfilename)\
+                (i,files,framenos_list,outfolder,ws,hs,nl_method='logit',nl_param=delta, use_csf=False,use_gnl=True,use_lnl=False)\
                 for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='nakarushton',use_csf=False,use_lnl=False)
