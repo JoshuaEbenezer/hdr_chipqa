@@ -91,9 +91,6 @@ def trainval_split(trainval_content,r):
             feature1 = np.zeros_like(feature2)
 
 #        feature = feature1
-<<<<<<< HEAD
-=======
-=======
         try:
             feat_file = load(os.path.join(feature_folder,featfile_name))
             feat_file2 = load(os.path.join(feature_folder2,featfile_name))
@@ -103,8 +100,6 @@ def trainval_split(trainval_content,r):
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
->>>>>>> 1529ff8374fbe3b63429ce8059885dfe6d6fce02
->>>>>>> 6bb6f06aaaeac718da393474a66ac39dcea94ec8
         feature = np.concatenate((feature1,feature2),axis=0)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
@@ -129,14 +124,8 @@ def single_split(trainval_content,cv_index,C):
 
     train_features,train_scores,val_features,val_scores,_ = trainval_split(trainval_content,cv_index)
     clf = svm.SVR(kernel='linear',C=C)
-<<<<<<< HEAD
 #    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
-=======
-<<<<<<< HEAD
 #    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
-=======
->>>>>>> 1529ff8374fbe3b63429ce8059885dfe6d6fce02
->>>>>>> 6bb6f06aaaeac718da393474a66ac39dcea94ec8
     scaler = StandardScaler()
     X_train = scaler.fit_transform(train_features)
     X_test = scaler.transform(val_features)
@@ -155,16 +144,7 @@ def grid_search(C_list,trainval_content):
 
 def train_test(r):
     train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
-<<<<<<< HEAD
     best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
-=======
-<<<<<<< HEAD
-    best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
-=======
-    best_C= grid_search(np.logspace(1,10,10,base=2),trainval_content)
->>>>>>> 1529ff8374fbe3b63429ce8059885dfe6d6fce02
->>>>>>> 6bb6f06aaaeac718da393474a66ac39dcea94ec8
-
 #    scaler = MinMaxScaler(feature_range=(-1,1))  
     scaler = StandardScaler()
     scaler.fit(train_features)
@@ -182,15 +162,7 @@ def only_train(r):
 #    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
     scaler = StandardScaler()
     X_train = scaler.fit_transform(all_features)
-<<<<<<< HEAD
     grid_svr = GridSearchCV(svm.SVR(kernel='linear'),param_grid = {"C":np.logspace(-7,2,10,base=2)},cv=5)
-=======
-<<<<<<< HEAD
-    grid_svr = GridSearchCV(svm.SVR(kernel='linear'),param_grid = {"C":np.logspace(-7,2,10,base=2)},cv=5)
-=======
-    grid_svr = GridSearchCV(svm.SVR(kernel='linear'),param_grid = {"C":np.logspace(1,10,10,base=2)},cv=5)
->>>>>>> 1529ff8374fbe3b63429ce8059885dfe6d6fce02
->>>>>>> 6bb6f06aaaeac718da393474a66ac39dcea94ec8
     grid_svr.fit(X_train, all_scores)
     preds = grid_svr.predict(X_train)
     srocc_test = spearmanr(preds,all_scores)
