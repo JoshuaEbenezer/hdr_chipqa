@@ -66,17 +66,11 @@ def trainval_split(trainval_content,r):
     val_scores = []
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-<<<<<<< HEAD
     feature_folder= './features/brisque_pq_upscaled_local_exp_delta2'
 #    feature_folder= './features/brisque_pq_upscaled_global_logit1_features'
-=======
-<<<<<<< HEAD
     feature_folder= './features/brisque_pq_upscaled_local_exp_delta2'
 #    feature_folder= './features/brisque_pq_upscaled_global_logit1_features'
-=======
     feature_folder= './features/brisque_linear_logit_csf_mscn_features'
->>>>>>> 1529ff8374fbe3b63429ce8059885dfe6d6fce02
->>>>>>> 6bb6f06aaaeac718da393474a66ac39dcea94ec8
     feature_folder2= './features/brisque_pq_upscaled_features'
     train_names = []
     val_names = [] 
@@ -86,10 +80,6 @@ def trainval_split(trainval_content,r):
 #        else:
 #        featfile_name = vid +'.z'
         featfile_name = vid+'_upscaled.z'
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 6bb6f06aaaeac718da393474a66ac39dcea94ec8
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
         #print(feat_file)
@@ -252,15 +242,19 @@ def only_test(r):
 srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(1000))
 ##srocc_list = np.nan_to_num(srocc_list)
 print("median srocc is")
-print(np.median([s[0] for s in srocc_list]))
+med_srcc = np.median([s[0] for s in srocc_list])
+print(med_srcc)
 print("median lcc is")
-print(np.median([s[1] for s in srocc_list]))
+med_lcc = np.median([s[1] for s in srocc_list])
+print(med_lcc)
 print("median rmse is")
-print(np.median([s[2] for s in srocc_list]))
+med_rmse = np.median([s[2] for s in srocc_list])
+print(med_rmse)
 print("std of srocc is")
 print(np.std([s[0] for s in srocc_list]))
 print("std of lcc is")
 print(np.std([s[1] for s in srocc_list]))
 print("std of rmse is")
 print(np.std([s[2] for s in srocc_list]))
+print(med_srcc, med_lcc, med_rmse)
 ##
