@@ -64,14 +64,9 @@ def trainval_split(trainval_content,r):
     val_features = []
     train_scores = []
     val_scores = []
-#    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
-    feature_folder= './features/brisque_pq_upscaled_local_exp_delta2'
-#    feature_folder= './features/brisque_pq_upscaled_global_logit1_features'
-    feature_folder= './features/brisque_pq_upscaled_local_exp_delta2'
-#    feature_folder= './features/brisque_pq_upscaled_global_logit1_features'
-    feature_folder= './features/brisque_linear_logit_csf_mscn_features'
-    feature_folder2= './features/brisque_pq_upscaled_features'
+    feature_folder= './features/chipqa_local_exp2'
+    feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -91,15 +86,6 @@ def trainval_split(trainval_content,r):
             feature1 = np.zeros_like(feature2)
 
 #        feature = feature1
-        try:
-            feat_file = load(os.path.join(feature_folder,featfile_name))
-            feat_file2 = load(os.path.join(feature_folder2,featfile_name))
-            score = scores[i]
-        except:
-            continue
-            
-        feature1 = np.asarray(feat_file['features'],dtype=np.float32)
-        feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature = np.concatenate((feature1,feature2),axis=0)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
