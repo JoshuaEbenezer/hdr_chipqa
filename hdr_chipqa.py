@@ -116,13 +116,13 @@ def Y_compute_gnl(Y,nl_method,nl_param):
     elif(nl_method=='sigmoid'):
         Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
     elif(nl_method=='logit'):
-        delta = 2 
+        delta = nl_param
         Y_scaled = -0.99+1.98*(Y-np.amin(Y))/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
         if(delta%2==0):
             Y_transform[Y<0] = -Y_transform[Y<0] 
     elif(nl_method=='exp'):
-        delta = 3
+        delta = nl_param
         Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
@@ -456,11 +456,11 @@ def sts_fromvid(args):
     flag = 0
     
     for delta in [2]:
-        outfolder = './features/chipqa_local_exp'+str(delta)
+        outfolder = './features/chipqa_global_exp'+str(delta)
         if(os.path.exists(outfolder)==False):
             os.mkdir(outfolder)
-        Parallel(n_jobs=20)(delayed(sts_fromfilename)\
-                (i,files,framenos_list,outfolder,ws,hs,nl_method='exp',nl_param=delta, use_csf=False,use_gnl=False,use_lnl=True)\
+        Parallel(n_jobs=10)(delayed(sts_fromfilename)\
+                (i,files,framenos_list,outfolder,ws,hs,nl_method='exp',nl_param=delta, use_csf=False,use_gnl=True,use_lnl=False)\
                 for i in range(len(files)))
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='nakarushton',use_csf=False,use_lnl=False)
