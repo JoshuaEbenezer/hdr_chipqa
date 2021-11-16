@@ -65,7 +65,7 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/chipqa_global_exp2'
+    feature_folder= './features/chipqa_global_logit2'
     feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
     train_names = []
     val_names = [] 
@@ -85,8 +85,8 @@ def trainval_split(trainval_content,r):
         if(np.sum(np.isnan(feature1))):
             feature1 = np.zeros_like(feature2)
 
-        feature = feature1
-#        feature = np.concatenate((feature1,feature2),axis=0)
+#        feature = feature1
+        feature = np.concatenate((feature1,feature2),axis=0)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)

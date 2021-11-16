@@ -318,3 +318,10 @@
 /mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/4k_ref_Light2_upscaled.yuv
 /mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/4k_ref_Light3_upscaled.yuv
 /mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/4k_ref_Light4_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football10_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football4_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football1_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football2_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football3_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football6_upscaled.yuv
+/mnt/b9f5646b-2c64-4699-8766-c4bba45fb442/fall2021_hdr_upscaled_yuv/720p_4.6M_football5_upscaled.yuv
