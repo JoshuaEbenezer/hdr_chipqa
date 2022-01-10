@@ -24,11 +24,11 @@ os.nice(1)
 parser = argparse.ArgumentParser(description='Generate ChipQA features from a folder of videos and store them')
 parser.add_argument('--input_folder',help='Folder containing input videos')
 parser.add_argument('--results_folder',help='Folder where features are stored')
-parser.add_argument('--upscaled', dest='upscaled', action='store_true')
 parser.add_argument('--hdr', dest='HDR version', action='store_true')
-parser.set_defaults(upscaled=False)
+parser.set_defaults(hdr=False)
 
 args = parser.parse_args()
+print(args)
 def gen_gauss_window(lw, sigma):
     sd = np.float32(sigma)
     lw = int(lw)
@@ -97,9 +97,9 @@ def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,h,step):
     return data_slice
 
 
-def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
+def find_kurtosis_sts(grad_img_buffer,step,cy,cx,rst,rct,theta):
 
-    h, w = img_buffer[step-1].shape[:2]
+    h, w = grad_img_buffer[step-1].shape[:2]
     gradY3d_mscn = np.reshape(grad_img_buffer.copy(),(step,-1))
     sts_grad_data = [find_kurtosis_slice(gradY3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
 
@@ -132,18 +132,20 @@ def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
 
 
 
-def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
+def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     filename = filenames[i]
     if(os.path.exists(filename)==False):
         return
     name = os.path.basename(filename)
     print(name) 
-    w = ws[i]
-    h = hs[i]
-    framenos = framenos_list[i]
     filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     if(os.path.exists(filename_out)):
         return
+    if(hdr):
+        framenos = framenos_list[i]
+    else:
+        cap = cv2.VideoCapture(filename)
+        framenos = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     ## PARAMETERS for the model
     st_time_length = 5
     t = np.arange(0,st_time_length)
@@ -152,9 +154,6 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
     avg_window = t*(1-a*t)*np.exp(-2*a*t)
     avg_window = np.flip(avg_window)
 
-    # SIZE of windows
-    h_win,w_win = 45,45
-    xx, yy = np.mgrid[h_win//2:h-h_win//2:h_win, w_win//2:w-w_win//2:w_win].reshape(2,-1).astype(int)
 
 
     # LUT for coordinate search
@@ -170,6 +169,7 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
     rst = rst.astype(np.int32)
 
     # SIZE of frames
+    h,w = 2160,3840
     print(h,w)
     if(h>w):
         h_temp = h
@@ -186,8 +186,9 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
         prevY_pq,_,_ = hdr_yuv_read(dis_file_object,0,h,w)
         prevY_pq = prevY_pq.astype(np.float32)
     else:
-        cap = cv2.VideoCapture(filename)
         ret, bgr = cap.read()
+        if(ret==False):
+            return
         prevY_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
 
@@ -236,12 +237,17 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
     feat_sd_list =  []
     sd_list= []
     
-    for framenum in range(1,framenos): 
+    while(True):
         # uncomment for FLOPS
         #high.start_counters([events.PAPI_FP_OPS,])
         
         if(hdr):
+            if(framenum==framenos-1):
+                break
+            else:
+                framenum=framenum+1
             try:
+
                 Y_pq,U_pq,V_pq = hdr_yuv_read(dis_file_object,framenum,h,w)
                 YUV = np.stack((Y_pq,U_pq,V_pq),axis=2)
                 YUV = YUV/1023.0
@@ -259,8 +265,9 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
                 f.close()
                 break
         else:
-            cap = cv2.VideoCapture(filename)
             ret, bgr = cap.read()
+            if(ret==False):
+                break
             # since this is SDR, the Y is gamma luma, not PQ luma, but is named with the PQ suffix for convenience
             Y_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
             Y_pq = Y_pq/255.0
@@ -307,7 +314,7 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
         chroma_down = cv2.resize(chroma,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma.flatten())
         dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_down.flatten())
-        chroma_ggd_feats = np.concatenate((chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma))
+        chroma_ggd_feats = np.asarray([chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma])
 
         chroma_gradient_x = cv2.Sobel(chroma,ddepth=-1,dx=1,dy=0)
         chroma_gradient_y = cv2.Sobel(chroma,ddepth=-1,dx=0,dy=1)
@@ -321,12 +328,11 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
         gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
         chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1e-3)
 
-        i=i+1
 
         corr = chroma_grad_mscn*gradY_mscn
         corr_down = chroma_grad_mscn_down*dgradY_mscn
         alpha1, N1, _, _, lsq1, rsq1 = ChipQA.save_stats.aggd_features(corr)
-        dalpha1, dN1,_, _, dbr1, dlsq1, drsq1 = ChipQA.save_stats.aggd_features(corr_down)
+        dalpha1, dN1 ,_, _, dlsq1, drsq1 = ChipQA.save_stats.aggd_features(corr_down)
         colorbleed_features =  np.array([alpha1, N1, lsq1**2, rsq1**2,dalpha1, dN1,dlsq1**2, drsq1**2])
 
         feats = np.concatenate((brisque,brisque_nl,chroma_ggd_feats,colorbleed_features),axis=0)
@@ -377,25 +383,26 @@ def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
 
 
 def sts_fromvid(args):
-    csv_file = './fall2021_yuv_rw_info.csv'
-    csv_df = pd.read_csv(csv_file)
-    if(args.upscaled):
+
+    if(args.hdr):
+        csv_file = './fall2021_yuv_rw_info.csv'
+        csv_df = pd.read_csv(csv_file)
         files = [os.path.join(args.input_folder,f[:-4]+'_upscaled.yuv') for f in csv_df["yuv"]]
-        ws = [3840]*len(csv_df)
-        hs = [2160]*len(csv_df)
+        fps = csv_df["fps"]
+        framenos_list = csv_df["framenos"]
     else:
-        files = [os.path.join(args.input_folder,f) for f in csv_df["yuv"]]
-        ws =csv_df["w"]
-        hs = csv_df["h"]
-    fps = csv_df["fps"]
-    framenos_list = csv_df["framenos"]
+        files = glob.glob(os.path.join(args.input_folder,'*.mp4'))
+        print(files)
+        framenos_list = []
     
-    outfolder = './features/livestream_hdr_chipqa'
+    outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=40)(delayed(full_hdr_chipqa_forfile)\
-            (i,files,framenos_list,outfolder,ws,hs,args.hdr)\
+    Parallel(n_jobs=40,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
+            (i,files,outfolder,args.hdr,framenos_list)\
             for i in range(len(files)))
+#    for i in range(len(files)):
+#        full_hdr_chipqa_forfile(i,files,outfolder,args.hdr,framenos_list)
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='exp'='nakarushton',use_csf=False,use_lnl=False)
              
