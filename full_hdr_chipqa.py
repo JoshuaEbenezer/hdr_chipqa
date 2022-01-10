@@ -24,7 +24,7 @@ os.nice(1)
 parser = argparse.ArgumentParser(description='Generate ChipQA features from a folder of videos and store them')
 parser.add_argument('--input_folder',help='Folder containing input videos')
 parser.add_argument('--results_folder',help='Folder where features are stored')
-parser.add_argument('--hdr', dest='HDR version', action='store_true')
+parser.add_argument('--hdr', dest='hdr', help='Set option if running on HDR YUV',action='store_true')
 parser.set_defaults(hdr=False)
 
 args = parser.parse_args()
@@ -387,7 +387,10 @@ def sts_fromvid(args):
     if(args.hdr):
         csv_file = './fall2021_yuv_rw_info.csv'
         csv_df = pd.read_csv(csv_file)
+        print(csv_df)
+        print([f for f in csv_df["yuv"])
         files = [os.path.join(args.input_folder,f[:-4]+'_upscaled.yuv') for f in csv_df["yuv"]]
+        print(files)
         fps = csv_df["fps"]
         framenos_list = csv_df["framenos"]
     else:
