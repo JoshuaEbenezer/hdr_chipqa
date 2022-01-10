@@ -388,7 +388,7 @@ def sts_fromvid(args):
         csv_file = './fall2021_yuv_rw_info.csv'
         csv_df = pd.read_csv(csv_file)
         print(csv_df)
-        print([f for f in csv_df["yuv"])
+        print([f for f in csv_df["yuv"]])
         files = [os.path.join(args.input_folder,f[:-4]+'_upscaled.yuv') for f in csv_df["yuv"]]
         print(files)
         fps = csv_df["fps"]
