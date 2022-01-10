@@ -1,4 +1,5 @@
 import time
+import colour
 import pandas as pd
 from utils.hdr_utils import hdr_yuv_read
 from utils.csf_utils import blockwise_csf,windows_csf
@@ -93,22 +94,17 @@ def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,h,step):
     idx = (np.abs(st_kurtosis - 3)).argmin()
     
     data_slice = data[idx,:]
-    return data_slice,st_kurtosis[idx]-3
+    return data_slice
 
 
 def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
 
     h, w = img_buffer[step-1].shape[:2]
-    Y3d_mscn = np.reshape(img_buffer.copy(),(step,-1))
     gradY3d_mscn = np.reshape(grad_img_buffer.copy(),(step,-1))
-    sts= [find_kurtosis_slice(Y3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
-    sts_grad= [find_kurtosis_slice(gradY3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
+    sts_grad_data = [find_kurtosis_slice(gradY3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
 
-    st_data = [sts[i][0] for i in range(len(sts))]
-    st_deviation = [sts[i][1] for i in range(len(sts))]
-    st_grad_data = [sts_grad[i][0] for i in range(len(sts_grad))]
-    st_grad_dev = [sts_grad[i][1] for i in range(len(sts_grad))]
-    return st_data,np.asarray(st_deviation),st_grad_data,np.asarray(st_grad_dev)
+    return sts_grad_data
+
 def Y_compute_gnl(Y,nl_method,nl_param):
     Y = Y.astype(np.float32)
     if(nl_method=='nakarushton'):
@@ -126,9 +122,6 @@ def Y_compute_gnl(Y,nl_method,nl_param):
         Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
-    elif(nl_method=='custom'):
-        Y = -0.99+(Y-np.amin(Y))* 1.98/(1e-3+np.amax(Y)-np.amin(Y))
-        Y_transform = transform(Y,5)
 
 
     return Y_transform
@@ -241,9 +234,15 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     dsize = (int(scale_percent*h),int(scale_percent*w))
 
     # opening file object
-    dis_file_object = open(filename)
-    prevY_pq,_,_ = hdr_yuv_read(dis_file_object,0,h,w)
-    prevY_pq = prevY_pq.astype(np.float32)
+    if(hdr):
+        dis_file_object = open(filename)
+        prevY_pq,_,_ = hdr_yuv_read(dis_file_object,0,h,w)
+        prevY_pq = prevY_pq.astype(np.float32)
+    else:
+        cap = cv2.VideoCapture(filename)
+        count=1
+        ret, bgr = cap.read()
+        prevY_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
 
     # ST chip centers and parameters
@@ -262,9 +261,7 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     prevY_pq_down_nl =Y_compute_lnl(prevY_pq_down,nl_method,nl_param)
 
     print(prevY_pq.shape,prevY_pq_down.shape)
-    img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
     grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-    down_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
     graddown_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
 
 
@@ -278,19 +275,15 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
     i = 0
 
-    Y_mscn,_,_ = compute_image_mscn_transform(prevY_pq,C)
-    dY_mscn,_,_ = compute_image_mscn_transform(prevY_pq_down,C)
-    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
-    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
+    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1e-3)
+    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1e-3)
 
-    img_buffer[i,:,:] = Y_mscn
-    down_img_buffer[i,:,:]= dY_mscn
+
     grad_img_buffer[i,:,:] =gradY_mscn 
     graddown_img_buffer[i,:,:]=dgradY_mscn 
     i = i+1
 
     
-    head, tail = os.path.split(filename)
 
 
     
@@ -300,20 +293,36 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     feat_sd_list =  []
     sd_list= []
     
-    j=0
-    total_time = 0
     for framenum in range(1,framenos): 
-#        print(framenum)
         # uncomment for FLOPS
         #high.start_counters([events.PAPI_FP_OPS,])
         
-        try:
-            Y_pq,_,_ = hdr_yuv_read(dis_file_object,framenum,h,w)
-        except:
-            f = open("chipqa_yuv_reading_error.txt", "a")
-            f.write(filename+"\n")
-            f.close()
-            break
+        if(hdr):
+            try:
+                Y_pq,U_pq,V_pq = hdr_yuv_read(dis_file_object,framenum,h,w)
+                YUV = np.stack((Y_pq,U_pq,V_pq),axis=2)
+                YUV = YUV/1023.0
+                rgb_frame = colour.YCbCr_to_RGB(YUV,K = [0.2627,0.0593])
+                xyz = colour.RGB_to_XYZ(rgb_frame, [0.3127,0.3290], [0.3127,0.3290],\
+                        colour.models.RGB_COLOURSPACE_BT2020.RGB_to_XYZ_matrix,\
+                        chromatic_adaptation_transform='CAT02',\
+                        cctf_decoding=colour.models.eotf_PQ_BT2100)
+                lab = colour.XYZ_to_hdr_CIELab(xyz, illuminant=[ 0.3127, 0.329 ], Y_s=0.2, Y_abs=100, method='Fairchild 2011')
+                Y_pq = Y_pq/1023.0
+
+            except:
+                f = open("chipqa_yuv_reading_error.txt", "a")
+                f.write(filename+"\n")
+                f.close()
+                break
+        else:
+            cap = cv2.VideoCapture(filename)
+            ret, bgr = cap.read()
+            # since this is SDR, the Y is gamma luma, not PQ luma, but is named with the PQ suffix for convenience
+            Y_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+
+            lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
+            lab = lab.astype(np.float32)
         
         
         Y_pq = Y_pq.astype(np.float32)
@@ -322,7 +331,13 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
         
         Y_pq_nl = Y_compute_lnl(Y_pq,nl_method,nl_param)
         Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method,nl_param)
-        C_nl = 1e-3
+
+        Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,1e-3)
+        dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,1e-3)
+
+        brisque_nl_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn_pq_nl)
+        brisque_nl_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn_pq_nl)
+        brisque_nl = np.concatenate((brisque_nl_fullscale,brisque_nl_halfscale),axis=0)
 
         gradient_x = cv2.Sobel(Y_pq,ddepth=-1,dx=1,dy=0)
         gradient_y = cv2.Sobel(Y_pq,ddepth=-1,dx=0,dy=1)
@@ -334,32 +349,49 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
 
-        Y_mscn,Ysigma,_ = compute_image_mscn_transform(Y_pq,C)
-        dY_mscn,dYsigma,_ = compute_image_mscn_transform(Y_down_pq,C)
+        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C=1e-3)
+        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C=1e-3)
 
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
+        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1e-3)
+        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1e-3)
 
-        gradient_feats = ChipQA.save_stats.extract_secondord_feats(gradY_mscn)
-        gdown_feats = ChipQA.save_stats.extract_secondord_feats(dgradY_mscn)
-        gfeats = np.concatenate((gradient_feats,gdown_feats),axis=0)
-
-        
-        Ysigma_mscn,_,_= compute_image_mscn_transform(Ysigma,C)
-        dYsigma_mscn,_,_= compute_image_mscn_transform(dYsigma,C)
-
-        sigma_feats = ChipQA.save_stats.stat_feats(Ysigma_mscn)
-        dsigma_feats = ChipQA.save_stats.stat_feats(dYsigma_mscn)
+        brisque_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn)
+        brisque_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn)
+        brisque = np.concatenate((brisque_fullscale,brisque_halfscale),axis=0)
 
 
-        feats = np.concatenate((gfeats,sigma_feats,dsigma_feats),axis=0)
+        chroma = np.sqrt(lab[:,:,1]**2+lab[:,:,2]**2)
+        chroma_down = cv2.resize(chroma,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
+        chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma.flatten())
+        dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_down.flatten())
+        chroma_ggd_feats = np.concatenate((chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma))
+
+        chroma_gradient_x = cv2.Sobel(chroma,ddepth=-1,dx=1,dy=0)
+        chroma_gradient_y = cv2.Sobel(chroma,ddepth=-1,dx=0,dy=1)
+        gradient_mag_chroma = np.sqrt(chroma_gradient_x**2+chroma_gradient_y**2)
+        gradient_mag_chroma = gradient_mag_chroma/np.amax(gradient_mag_chroma)
+        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1e-3)
+
+        chroma_gradient_x_down= cv2.Sobel(chroma_down,ddepth=-1,dx=1,dy=0)
+        chroma_gradient_y_down = cv2.Sobel(chroma_down,ddepth=-1,dx=0,dy=1)
+        gradient_mag_chroma_down = np.sqrt(chroma_gradient_x_down**2+chroma_gradient_y_down**2)
+        gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
+        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1e-3)
+
+        i=i+1
+
+        corr = chroma_grad_mscn*gradY_mscn
+        corr_down = chroma_grad_mscn_down*dgradY_mscn
+        alpha1, N1, _, _, lsq1, rsq1 = ChipQA.save_stats.aggd_features(corr)
+        dalpha1, dN1,_, _, dbr1, dlsq1, drsq1 = ChipQA.save_stats.aggd_features(corr_down)
+        colorbleed_features =  np.array([alpha1, N1, lsq1**2, rsq1**2,dalpha1, dN1,dlsq1**2, drsq1**2])
+
+        feats = np.concatenate((brisque,brisque_nl,chroma_ggd_feats,colorbleed_features),axis=0)
 
         feat_sd_list.append(feats)
         spatavg_list.append(feats)
 
         
-        img_buffer[i,:,:] = Y_mscn
-        down_img_buffer[i,:,:]= dY_mscn
         grad_img_buffer[i,:,:] =gradY_mscn 
         graddown_img_buffer[i,:,:]=dgradY_mscn 
         i=i+1
@@ -367,36 +399,25 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
 
         if (i>=st_time_length): 
 
-            Y3d_mscn = spatiotemporal_mscn(img_buffer,avg_window)
-            Ydown_3d_mscn = spatiotemporal_mscn(down_img_buffer,avg_window)
             grad3d_mscn = spatiotemporal_mscn(grad_img_buffer,avg_window)
             graddown3d_mscn = spatiotemporal_mscn(graddown_img_buffer,avg_window)
-            spat_feats = ChipQA.niqe.compute_niqe_features(Y_pq,C=C)
 
             sd_feats = np.std(feat_sd_list,axis=0)
             sd_list.append(sd_feats)
             feat_sd_list = []
 
-            sts,st_deviation,sts_grad,sts_grad_deviation = find_kurtosis_sts(Y3d_mscn,grad3d_mscn,step,cy,cx,rst,rct,theta)
-            dsts,dsts_deviation,dsts_grad,dsts_grad_deviation = find_kurtosis_sts(Ydown_3d_mscn,graddown3d_mscn,step,dcy,dcx,rst,rct,theta)
-            sts_arr = np.reshape(sts,(r1*st_time_length,r2*st_time_length)) 
+            sts_grad= find_kurtosis_sts(grad3d_mscn,step,cy,cx,rst,rct,theta)
+            dsts_grad = find_kurtosis_sts(graddown3d_mscn,step,dcy,dcx,rst,rct,theta)
             sts_grad = np.reshape(sts_grad,(r1*st_time_length,r2*st_time_length))
-            dsts_arr = np.reshape(dsts,(dr1*st_time_length,dr2*st_time_length)) #(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
-            dsts_grad = np.reshape(dsts_grad,(dr1*st_time_length,dr2*st_time_length))#(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
-            feats =  ChipQA.save_stats.brisque(sts_arr)
-            grad_feats = ChipQA.save_stats.brisque(sts_grad)
-            
-            dfeats =  ChipQA.save_stats.brisque(dsts_arr)
+            dsts_grad = np.reshape(dsts_grad,(dr1*st_time_length,dr2*st_time_length))
+            grad_feats =  ChipQA.save_stats.brisque(sts_grad)
             dgrad_feats = ChipQA.save_stats.brisque(dsts_grad)
-
-
-            allst_feats = np.concatenate((spat_feats,feats,dfeats,grad_feats,dgrad_feats),axis=0)
+            
+            allst_feats = np.concatenate((grad_feats,dgrad_feats),axis=0)
             X_list.append(allst_feats)
 
 
-            img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
             grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-            down_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
             graddown_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
             i=0
 #            x=high.stop_counters()
