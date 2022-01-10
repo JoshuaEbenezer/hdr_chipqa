@@ -25,10 +25,10 @@ parser = argparse.ArgumentParser(description='Generate ChipQA features from a fo
 parser.add_argument('--input_folder',help='Folder containing input videos')
 parser.add_argument('--results_folder',help='Folder where features are stored')
 parser.add_argument('--upscaled', dest='upscaled', action='store_true')
+parser.add_argument('--hdr', dest='HDR version', action='store_true')
 parser.set_defaults(upscaled=False)
 
 args = parser.parse_args()
-C=1
 def gen_gauss_window(lw, sigma):
     sd = np.float32(sigma)
     lw = int(lw)
@@ -105,34 +105,14 @@ def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
 
     return sts_grad_data
 
-def Y_compute_gnl(Y,nl_method,nl_param):
-    Y = Y.astype(np.float32)
-    if(nl_method=='nakarushton'):
-        Y_transform =  Y/(Y+avg_luminance) #
-    elif(nl_method=='sigmoid'):
-        Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
-    elif(nl_method=='logit'):
-        delta = nl_param
-        Y_scaled = -0.99+1.98*(Y-np.amin(Y))/(1e-3+np.amax(Y)-np.amin(Y))
-        Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
-        if(delta%2==0):
-            Y_transform[Y<0] = -Y_transform[Y<0] 
-    elif(nl_method=='exp'):
-        delta = nl_param
-        Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
-        Y_transform =  np.exp(np.abs(Y)**delta)-1
-        Y_transform[Y<0] = -Y_transform[Y<0]
 
-
-    return Y_transform
-
-def Y_compute_lnl(Y,nl_method,nl_param):
+def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
     Y = Y.astype(np.float32)
 
     if(nl_method=='logit'):
         maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
         minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = nl_param
+        delta = nl_param=1
         Y_scaled = -0.99+1.98*(Y-minY)/(1e-3+maxY-minY)
         Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
         if(delta%2==0):
@@ -140,52 +120,19 @@ def Y_compute_lnl(Y,nl_method,nl_param):
     elif(nl_method=='exp'):
         maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
         minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = nl_param
+        delta = nl_param=1
         Y = -4+(Y-minY)* 8/(1e-3+maxY-minY)
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
-    elif(nl_method=='custom'):
-        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
-        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        Y = -0.99+(Y-minY)* 1.98/(1e-3+maxY-minY)
-        Y_transform = transform(Y,5)
     elif(nl_method=='sigmoid'):
         avg_luminance = scipy.ndimage.gaussian_filter(Y,sigma=7.0/6.0)
         Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
     return Y_transform
 
 
-def blockshaped(arr, nrows, ncols):
-    """
-    Return an array of shape (n, nrows, ncols) where
-    n * nrows * ncols = arr.size
-
-    If arr is a 2D array, the returned array should look like n subblocks with
-    each subblock preserving the "physical" layout of arr.
-    """
-    h, w = arr.shape
-    assert h % nrows == 0, "{} rows is not evenly divisble by {}".format(h, nrows)
-    assert w % ncols == 0, "{} cols is not evenly divisble by {}".format(w, ncols)
-    return (arr.reshape(h//nrows, nrows, -1, ncols)
-               .swapaxes(1,2)
-               .reshape(-1, nrows, ncols))
-
-def unblockshaped(arr, h, w):
-    """
-    Return an array of shape (h, w) where
-    h * w = arr.size
-
-    If arr is of shape (n, nrows, ncols), n sublocks of shape (nrows, ncols),
-    then the returned array preserves the "physical" layout of the sublocks.
-    """
-    n, nrows, ncols = arr.shape
-    return (arr.reshape(h//nrows, -1, nrows, ncols)
-               .swapaxes(1,2)
-               .reshape(h, w))
 
 
-
-def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl_param, use_csf=True,use_gnl=True,use_lnl=True):
+def full_hdr_chipqa_forfile(i,filenames,framenos_list,results_folder,ws,hs,hdr):
     filename = filenames[i]
     if(os.path.exists(filename)==False):
         return
@@ -240,7 +187,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
         prevY_pq = prevY_pq.astype(np.float32)
     else:
         cap = cv2.VideoCapture(filename)
-        count=1
         ret, bgr = cap.read()
         prevY_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
 
@@ -257,8 +203,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     
     C = 1
     prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
-    prevY_pq_nl = Y_compute_lnl(prevY_pq,nl_method,nl_param)
-    prevY_pq_down_nl =Y_compute_lnl(prevY_pq_down,nl_method,nl_param)
 
     print(prevY_pq.shape,prevY_pq_down.shape)
     grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
@@ -287,7 +231,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
 
 
     
-    spat_list = []
     X_list = []
     spatavg_list = []
     feat_sd_list =  []
@@ -320,17 +263,17 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
             ret, bgr = cap.read()
             # since this is SDR, the Y is gamma luma, not PQ luma, but is named with the PQ suffix for convenience
             Y_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            Y_pq = Y_pq/255.0
 
             lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
             lab = lab.astype(np.float32)
         
         
-        Y_pq = Y_pq.astype(np.float32)
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
         
-        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method,nl_param)
-        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method,nl_param)
+        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=1)
+        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=1)
 
         Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,1e-3)
         dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,1e-3)
@@ -446,17 +389,15 @@ def sts_fromvid(args):
         hs = csv_df["h"]
     fps = csv_df["fps"]
     framenos_list = csv_df["framenos"]
-    flag = 0
     
-    for delta in [2]:
-        outfolder = './features/chipqa_local_logit2'#+str(delta)
-        if(os.path.exists(outfolder)==False):
-            os.mkdir(outfolder)
-        Parallel(n_jobs=40)(delayed(sts_fromfilename)\
-                (i,files,framenos_list,outfolder,ws,hs,nl_method='logit',nl_param=delta, use_csf=False,use_gnl=False,use_lnl=True)\
-                for i in range(len(files)))
+    outfolder = './features/livestream_hdr_chipqa'
+    if(os.path.exists(outfolder)==False):
+        os.mkdir(outfolder)
+    Parallel(n_jobs=40)(delayed(full_hdr_chipqa_forfile)\
+            (i,files,framenos_list,outfolder,ws,hs,args.hdr)\
+            for i in range(len(files)))
 #    for i in range(len(files)):
-#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='nakarushton',use_csf=False,use_lnl=False)
+#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='exp'='nakarushton',use_csf=False,use_lnl=False)
              
 
 
