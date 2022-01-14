@@ -120,7 +120,7 @@ def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
     elif(nl_method=='exp'):
         maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
         minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = nl_param=1
+        delta = nl_param
         Y = -4+(Y-minY)* 8/(1e-3+maxY-minY)
         Y_transform =  np.exp(np.abs(Y)**delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
@@ -140,6 +140,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     print(name) 
     filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     if(os.path.exists(filename_out)):
+        print(name, ' has output already')
         return
     if(hdr):
         framenos = framenos_list[i]
@@ -170,7 +171,6 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
 
     # SIZE of frames
     h,w = 2160,3840
-    print(h,w)
     if(h>w):
         h_temp = h
         h=w
@@ -202,10 +202,8 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     dr2 = len(np.arange(step,dsize[1]-step*4,step*4)) 
 
     
-    C = 1
     prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
 
-    print(prevY_pq.shape,prevY_pq_down.shape)
     grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
     graddown_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
 
@@ -220,8 +218,8 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
     i = 0
 
-    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1e-3)
-    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1e-3)
+    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1)
+    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1)
 
 
     grad_img_buffer[i,:,:] =gradY_mscn 
@@ -259,7 +257,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
                         chromatic_adaptation_transform='CAT02',\
                         cctf_decoding=colour.models.eotf_PQ_BT2100)
                 lab = colour.XYZ_to_hdr_CIELab(xyz, illuminant=[ 0.3127, 0.329 ], Y_s=0.2, Y_abs=100, method='Fairchild 2011')
-                Y_pq = Y_pq/1023.0
+#                Y_pq = Y_pq/1023.0
 
             except:
                 f = open("chipqa_yuv_reading_error.txt", "a")
@@ -278,14 +276,15 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
             lab = lab.astype(np.float32)
         
         
+        Y_pq = Y_pq.astype(np.float32)
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
         
         Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=1)
         Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=1)
 
-        Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,1e-3)
-        dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,1e-3)
+        Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,1)
+        dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,1)
 
         brisque_nl_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn_pq_nl)
         brisque_nl_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn_pq_nl)
@@ -301,11 +300,11 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
 
-        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C=1e-3)
-        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C=1e-3)
+        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C=1)
+        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C=1)
 
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1e-3)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1e-3)
+        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1)
+        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1)
 
         brisque_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn)
         brisque_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn)
@@ -322,13 +321,13 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         chroma_gradient_y = cv2.Sobel(chroma,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma = np.sqrt(chroma_gradient_x**2+chroma_gradient_y**2)
         gradient_mag_chroma = gradient_mag_chroma/np.amax(gradient_mag_chroma)
-        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1e-3)
+        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1)
 
         chroma_gradient_x_down= cv2.Sobel(chroma_down,ddepth=-1,dx=1,dy=0)
         chroma_gradient_y_down = cv2.Sobel(chroma_down,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma_down = np.sqrt(chroma_gradient_x_down**2+chroma_gradient_y_down**2)
         gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
-        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1e-3)
+        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1)
 
 
         corr = chroma_grad_mscn*gradY_mscn
@@ -337,6 +336,10 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         dalpha1, dN1 ,_, _, dlsq1, drsq1 = ChipQA.save_stats.aggd_features(corr_down)
         colorbleed_features =  np.array([alpha1, N1, lsq1**2, rsq1**2,dalpha1, dN1,dlsq1**2, drsq1**2])
 
+        # [0:36] - BRISQUE
+        # [36:72] - BRISQUE after NL
+        # [72:76] - Chroma GGD
+        # [76:84] - Chroma Colorbleed
         feats = np.concatenate((brisque,brisque_nl,chroma_ggd_feats,colorbleed_features),axis=0)
 
         feat_sd_list.append(feats)
@@ -375,7 +378,9 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
 #        print(x,"is the number of flops")
 
     X1 = np.average(spatavg_list,axis=0)
+    # [84:168] - SD feats
     X2 = np.average(sd_list,axis=0)
+    # [168:204] - ST Gradient feats
     X3 = np.average(X_list,axis=0)
     X = np.concatenate((X1,X2,X3),axis=0)
     train_dict = {"features":X}
