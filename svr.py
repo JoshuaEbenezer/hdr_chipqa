@@ -38,7 +38,7 @@ def results(all_preds,all_dmos):
         preds_fitted = all_preds
     preds_srocc = spearmanr(preds_fitted,all_dmos)
     preds_lcc = pearsonr(preds_fitted,all_dmos)
-    preds_rmse = np.sqrt(np.mean(preds_fitted-all_dmos)**2)
+    preds_rmse = np.sqrt(np.mean((preds_fitted-all_dmos)**2))
 #    print('SROCC:')
 #    print(preds_srocc[0])
 #    print('LCC:')
@@ -50,9 +50,10 @@ def results(all_preds,all_dmos):
 
 
 
-scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/fall21_mos_and_dmos_rawavg.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
+scores_df['content'] = [v.split('_')[2] for v in scores_df['video']]
 print(len(scores_df['content'].unique()))
 srocc_list = []
 
@@ -64,8 +65,10 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/chipqa_global_logit3'
-    feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
+    feature_folder= './features/fall21_hdr_brisque_nl4'
+    feature_folder2= '../hdr_brisque/features/brisque_pq_upscaled_features'
+    feature_folder3= './features/fall21_hdr_full_hdrchipqa'
+
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -76,16 +79,17 @@ def trainval_split(trainval_content,r):
         featfile_name = vid+'_upscaled.z'
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
-        #print(feat_file)
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+        feat_file3 = load(os.path.join(feature_folder3,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
-        if(np.sum(np.isnan(feature1))):
-            feature1 = np.zeros_like(feature2)
+        feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 
-#        feature = feature1
-        feature = np.concatenate((feature1,feature2),axis=0)
+#        feature = np.concatenate((feature1,feature3[0:36],feature3[168-12:],feature3[72:84]),axis=0)
+#        feature = feature2
+#        print(feature.shape)
+        feature = feature3[0:36]
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
@@ -196,7 +200,7 @@ def only_test(r):
 #only_test(0)
 #srocc_list = train_test(0) 
 #print(srocc_list)
-srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(1000))
+srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(100))
 ##srocc_list = np.nan_to_num(srocc_list)
 print("median srocc is")
 med_srcc = np.median([s[0] for s in srocc_list])
