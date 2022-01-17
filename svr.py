@@ -124,7 +124,7 @@ def grid_search(C_list,trainval_content):
 
 def train_test(r):
     train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
-    best_C= grid_search(C_list=np.logspace(-5,5,10,base=2),trainval_content=trainval_content)
+    best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
 #    scaler = MinMaxScaler(feature_range=(-1,1))  
     scaler = StandardScaler()
     scaler.fit(train_features)
