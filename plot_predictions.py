@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 
-scores_df = pd.read_csv('../fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content']=[ i.split('_')[2] for i in scores_df['video'] ]
@@ -32,17 +32,20 @@ def single_run_svr(r):
     test_scores = []
     train_vids = []
     test_vids = []
-    feature_folder= './features/'
+    feature_folder= './features/fall21_hdr_brisque_nl4'
+    feature_folder2= './features/fall21_hdr_full_hdrchipqa'
 
     for i,vid in enumerate(video_names):
-        featfile_name = vid+'_upscaled.csv'
+        featfile_name = vid+'_upscaled.z'
         score = scores[i]
 
-        feat_file = pd.read_csv(os.path.join(feature_folder,featfile_name),header=None)
-        feat_file.replace([np.inf,-np.inf],np.nan,inplace=True)
-        feature = feat_file.iloc[1,:].to_numpy().flatten()
+        feat_file = load(os.path.join(feature_folder,featfile_name))
+        feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+            
+        feature1 = np.asarray(feat_file['features'],dtype=np.float32)
+        feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
 
-        feature = np.nan_to_num(feature)
+        feature = np.concatenate((feature1,feature2[0:36],feature2[168:],feature2[72:84]),axis=0)
 #         feature1 = np.asarray(load(os.path.join(feature_folder,featfile_name))['features'],dtype=np.float32)
 #         feature = feature1
         feature = np.nan_to_num(feature)
@@ -83,8 +86,8 @@ def single_run_svr(r):
 #    srocc_list.append(srocc_test[0])
 
 test_zips = Parallel(n_jobs=-1)(delayed(single_run_svr)(r) for r in range(100))
-dump(test_zips,'./preds/rapique_feats.z')
-test_zips = load('./preds/rapique_feats.z')
+dump(test_zips,'./preds/hdrchipqa_feats.z')
+test_zips = load('./preds/hdrchipqa_feats.z')
 def find(lst, a):
     return [i for i, x in enumerate(lst) if x==a]
 
@@ -140,5 +143,5 @@ plt.scatter(nscores,npreds,label='predictions')
 plt.plot(x,y,color='#ff7f0e',linewidth=3,label='fit')
 plt.xlabel('MOS')
 plt.ylabel('Prediction')
-plt.savefig('./images/rapique_predictions.png')
+plt.savefig('./images/hdrchipqa_predictions.png')
 
