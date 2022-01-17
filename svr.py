@@ -38,7 +38,7 @@ def results(all_preds,all_dmos):
         preds_fitted = all_preds
     preds_srocc = spearmanr(preds_fitted,all_dmos)
     preds_lcc = pearsonr(preds_fitted,all_dmos)
-    preds_rmse = np.sqrt(np.mean(preds_fitted-all_dmos)**2)
+    preds_rmse = np.sqrt(np.mean((preds_fitted-all_dmos)**2))
 #    print('SROCC:')
 #    print(preds_srocc[0])
 #    print('LCC:')
@@ -65,7 +65,10 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/fall21_hdr_full_hdrchipqa'
+    feature_folder= './features/fall21_hdr_brisque_nl4'
+    feature_folder2= '../hdr_brisque/features/brisque_pq_upscaled_features'
+    feature_folder3= './features/fall21_hdr_full_hdrchipqa'
+
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -76,11 +79,17 @@ def trainval_split(trainval_content,r):
         featfile_name = vid+'_upscaled.z'
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
+        feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+        feat_file3 = load(os.path.join(feature_folder3,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
+        feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
+        feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 
-#        feature = np.concatenate((feature1[0:84],feature1[168:]),axis=0)
-        feature = feature1[0:84]
+#        feature = np.concatenate((feature1,feature3[0:36],feature3[168-12:],feature3[72:84]),axis=0)
+#        feature = feature2
+#        print(feature.shape)
+        feature = feature3[0:36]
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
@@ -124,7 +133,7 @@ def grid_search(C_list,trainval_content):
 
 def train_test(r):
     train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
-    best_C= grid_search(C_list=np.logspace(-5,5,10,base=2),trainval_content=trainval_content)
+    best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
 #    scaler = MinMaxScaler(feature_range=(-1,1))  
     scaler = StandardScaler()
     scaler.fit(train_features)

@@ -270,21 +270,21 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
                 break
             # since this is SDR, the Y is gamma luma, not PQ luma, but is named with the PQ suffix for convenience
             Y_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-            Y_pq = Y_pq/255.0
+#            Y_pq = Y_pq/255.0
 
             lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
             lab = lab.astype(np.float32)
         
         
         Y_pq = Y_pq.astype(np.float32)
-        Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
+        Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_LANCZOS4)
         
         
         Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=1)
         Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=1)
 
-        Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,1)
-        dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,1)
+        Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,C=0.001)
+        dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,C=0.001)
 
         brisque_nl_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn_pq_nl)
         brisque_nl_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn_pq_nl)
@@ -300,11 +300,11 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
 
-        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C=1)
-        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C=1)
+        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C=4)
+        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C=4)
 
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1)
+        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=4)
+        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=4)
 
         brisque_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn)
         brisque_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn)
@@ -321,13 +321,13 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         chroma_gradient_y = cv2.Sobel(chroma,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma = np.sqrt(chroma_gradient_x**2+chroma_gradient_y**2)
         gradient_mag_chroma = gradient_mag_chroma/np.amax(gradient_mag_chroma)
-        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1)
+        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1e-3)
 
         chroma_gradient_x_down= cv2.Sobel(chroma_down,ddepth=-1,dx=1,dy=0)
         chroma_gradient_y_down = cv2.Sobel(chroma_down,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma_down = np.sqrt(chroma_gradient_x_down**2+chroma_gradient_y_down**2)
         gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
-        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1)
+        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1e-3)
 
 
         corr = chroma_grad_mscn*gradY_mscn
@@ -408,7 +408,7 @@ def sts_fromvid(args):
     outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=60,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
+    Parallel(n_jobs=65,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
             (i,files,outfolder,args.hdr,framenos_list)\
             for i in range(len(files)))
 #    for i in range(len(files)):
