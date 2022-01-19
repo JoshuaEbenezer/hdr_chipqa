@@ -32,8 +32,8 @@ def single_run_svr(r):
     test_scores = []
     train_vids = []
     test_vids = []
-    feature_folder= './features/fall21hdr_chipqa__hdrlab_chroma_features'
-    feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
+    feature_folder= './features/fall21_hdr_hdrchipqa_nl4'
+    feature_folder2= './features/fall21_hdr_full_hdrchipqa'
 
     train_names = []
     val_names = [] 
@@ -50,7 +50,8 @@ def single_run_svr(r):
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
 
-        feature = np.concatenate((feature1,feature2),axis=0)
+        feature = feature2[0:36]
+#        feature = np.concatenate((feature1,feature2[0:36],feature2[168-12:],feature2[72:84]),axis=0)
 #         feature1 = np.asarray(load(os.path.join(feature_folder,featfile_name))['features'],dtype=np.float32)
 #         feature = feature1
         feature = np.nan_to_num(feature)
@@ -90,9 +91,9 @@ def single_run_svr(r):
 #    print(srocc_test)
 #    srocc_list.append(srocc_test[0])
 
-test_zips = Parallel(n_jobs=-1)(delayed(single_run_svr)(r) for r in range(100))
-dump(test_zips,'./preds/chipqa_feats.z')
-test_zips = load('./preds/chipqa_feats.z')
+#test_zips = Parallel(n_jobs=-1)(delayed(single_run_svr)(r) for r in range(100))
+#dump(test_zips,'./preds/hdrchipqa_preds.z')
+test_zips = load('./preds/hdrchipqa_preds.z')
 def find(lst, a):
     return [i for i, x in enumerate(lst) if x==a]
 
@@ -148,5 +149,5 @@ plt.scatter(npreds,nscores,label='predictions')
 plt.plot(x,y,color='#ff7f0e',linewidth=3,label='fit')
 plt.ylabel('MOS')
 plt.xlabel('Prediction')
-plt.savefig('./images/chipqa_predictions.png')
+plt.savefig('./images/hdrchipqa_predictions.png',bbox_inches='tight')
 
