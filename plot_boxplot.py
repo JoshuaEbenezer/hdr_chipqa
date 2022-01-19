@@ -48,7 +48,6 @@ for tzf in test_zip_files:
             current_preds.append(l[2])
 
         preds_srocc = spearmanr(current_preds,current_scores)
-        print(preds_srocc)
         srocc_list.append(preds_srocc[0])
     X.append(srocc_list)
 print(tzf_names)
@@ -60,7 +59,9 @@ X = pd.DataFrame(X.T,columns=tzf_names)
 
 import matplotlib
 matplotlib.rcParams.update({'font.size':15})
-plt.figure()
+
+plt.figure(figsize=(8, 6), dpi=80)
+
 plt.clf()
 
 meds = X.median()
