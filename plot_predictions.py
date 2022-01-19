@@ -32,20 +32,25 @@ def single_run_svr(r):
     test_scores = []
     train_vids = []
     test_vids = []
-    feature_folder= './features/fall21_hdr_brisque_nl4'
-    feature_folder2= './features/fall21_hdr_full_hdrchipqa'
+    feature_folder= './features/fall21hdr_chipqa__hdrlab_chroma_features'
+    feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
 
+    train_names = []
+    val_names = [] 
     for i,vid in enumerate(video_names):
+#        if("Jockey" in vid or "Football" in vid):
+#            continue
+#        else:
+#        featfile_name = vid +'.z'
         featfile_name = vid+'_upscaled.z'
         score = scores[i]
-
         feat_file = load(os.path.join(feature_folder,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
 
-        feature = np.concatenate((feature1,feature2[0:36],feature2[168:],feature2[72:84]),axis=0)
+        feature = np.concatenate((feature1,feature2),axis=0)
 #         feature1 = np.asarray(load(os.path.join(feature_folder,featfile_name))['features'],dtype=np.float32)
 #         feature = feature1
         feature = np.nan_to_num(feature)
@@ -86,8 +91,8 @@ def single_run_svr(r):
 #    srocc_list.append(srocc_test[0])
 
 test_zips = Parallel(n_jobs=-1)(delayed(single_run_svr)(r) for r in range(100))
-dump(test_zips,'./preds/hdrchipqa_feats.z')
-test_zips = load('./preds/hdrchipqa_feats.z')
+dump(test_zips,'./preds/chipqa_feats.z')
+test_zips = load('./preds/chipqa_feats.z')
 def find(lst, a):
     return [i for i, x in enumerate(lst) if x==a]
 
@@ -132,16 +137,16 @@ def fit(all_preds,all_dmos):
     return preds_fitted,b0, b1, b2, b3, b4
 
 preds_fitted,b0, b1, b2, b3, b4 = fit(npreds,nscores)
-x = np.arange(np.amin(nscores),np.amax(nscores))
+x = np.arange(np.amin(npreds),np.amax(npreds))
 y = b0 * (0.5 - 1.0/(1 + np.exp(b1*(x - b2))) + b3 * x+ b4)
 
 import matplotlib
 matplotlib.rcParams.update({'font.size':15})
 plt.figure()
 plt.clf()
-plt.scatter(nscores,npreds,label='predictions')
+plt.scatter(npreds,nscores,label='predictions')
 plt.plot(x,y,color='#ff7f0e',linewidth=3,label='fit')
-plt.xlabel('MOS')
-plt.ylabel('Prediction')
-plt.savefig('./images/hdrchipqa_predictions.png')
+plt.ylabel('MOS')
+plt.xlabel('Prediction')
+plt.savefig('./images/chipqa_predictions.png')
 
