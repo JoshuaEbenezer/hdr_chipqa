@@ -60,7 +60,7 @@ X = pd.DataFrame(X.T,columns=tzf_names)
 import matplotlib
 matplotlib.rcParams.update({'font.size':15})
 
-plt.figure(figsize=(8, 6), dpi=80)
+plt.figure(figsize=(12, 6), dpi=80)
 
 plt.clf()
 
