@@ -46,36 +46,23 @@ for tzf in test_zip_files:
         preds_srocc = spearmanr(preds,scores)
         srocc_list.append(preds_srocc[0])
     X.append(srocc_list)
-X = np.asarray(X)                                                                                                                                                                                                                                              
-print(X.shape)
-#    # print(names)
-#    # print(scores)
-#    nscores= []
-#    npreds = []
-#    nset = set(names)
-#    print(len(names))
-#    print(len(nset))
-#    # print(nset)
-#    for n in nset:
-#        indices = find(names,n)
-#        nscores.append(np.mean([scores[i] for i in indices]))
-#        npreds.append(np.mean([preds[i] for i in indices]))
-#    # print(nscores,npreds)
-#
-#    print(len(nscores),len(npreds))
-#    preds_srocc = spearmanr(npreds,nscores)
-#    
-#
-#
-#
+X = np.asarray(X)
+X = pd.DataFrame(X.T,columns=tzf_names)
+    
+
+
+
 import matplotlib
 matplotlib.rcParams.update({'font.size':15})
 plt.figure()
 plt.clf()
 
+meds = X.median()
+meds.sort_values(ascending=False, inplace=True)
+X = X[meds.index]
+X.boxplot()
 print(len(tzf_names))
-plt.boxplot(X.T)
-plt.xticks(np.arange(len(tzf_names))+1, tzf_names)
+#plt.xticks(np.arange(len(tzf_names))+1, tzf_names)
 
 
 plt.ylabel('SRCC')
