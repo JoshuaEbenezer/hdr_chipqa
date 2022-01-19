@@ -74,7 +74,7 @@ plt.figure()
 plt.clf()
 
 print(len(tzf_names))
-plt.boxplot(X)
+plt.boxplot(X.T)
 plt.xticks(np.arange(len(tzf_names))+1, tzf_names)
 
 
