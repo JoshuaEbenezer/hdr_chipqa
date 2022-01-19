@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 
-scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv('/home/josh-admin/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content']=[ i.split('_')[2] for i in scores_df['video'] ]
@@ -23,17 +23,17 @@ srocc_list = []
 test_zips = []
 
 
-def single_run_svr(r):
-    train,test = train_test_split(scores_df['content'].unique(),test_size=0.2,random_state=r)
+def trainval_split(trainval_content,r):
+    train,val= train_test_split(trainval_content,test_size=0.2,random_state=r)
     train_features = []
     train_indices = []
-    test_features = []
+    val_features = []
     train_scores = []
-    test_scores = []
-    train_vids = []
-    test_vids = []
-    feature_folder= './features/fall21_hdr_hdrchipqa_nl4'
-    feature_folder2= './features/fall21_hdr_full_hdrchipqa'
+    val_scores = []
+
+    feature_folder= './features/fall21_hdr_brisque_nl4'
+    feature_folder2= '../hdr_brisque/features/brisque_pq_upscaled_features'
+    feature_folder3= './features/fall21_hdr_full_hdrchipqa'
 
     train_names = []
     val_names = [] 
@@ -46,14 +46,15 @@ def single_run_svr(r):
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+        feat_file3 = load(os.path.join(feature_folder3,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
+        feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 
-        feature = feature2[0:36]
-#        feature = np.concatenate((feature1,feature2[0:36],feature2[168-12:],feature2[72:84]),axis=0)
-#         feature1 = np.asarray(load(os.path.join(feature_folder,featfile_name))['features'],dtype=np.float32)
-#         feature = feature1
+#        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature3[72:84]),axis=0)
+        feature = feature3[0:36]
+#        print(feature.shape)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
@@ -61,28 +62,55 @@ def single_run_svr(r):
             train_features.append(feature)
             train_scores.append(score)
             train_indices.append(i)
-            train_vids.append(vid)
+            train_names.append(scores_df.loc[i]['video'])
+            
+        elif(scores_df.loc[i]['content'] in val):
+            val_features.append(feature)
+            val_scores.append(score)
+            val_names.append(scores_df.loc[i]['video'])
+#    print('Train set')
+#    print(len(train_names))
+#    print('Validation set')
+#    print(len(val_names))
+    return np.asarray(train_features),train_scores,np.asarray(val_features),val_scores,train,val_names
 
-        else:
-            test_features.append(feature)
-            test_scores.append(score)
-            test_vids.append(vid)
-    train_features = np.asarray(train_features)
-    #naninds =np.argwhere(np.isnan(train_features))
-    #nanshape = naninds.shape
-#    for nanind in range(nanshape[0]):
-#        actind = train_indices[nanind]
-#        print(scores_df.loc[actind]['video'])
-#     scaler = MinMaxScaler(feature_range=(-1,1))
+def single_split(trainval_content,cv_index,C):
+
+    train_features,train_scores,val_features,val_scores,_,_ = trainval_split(trainval_content,cv_index)
+    clf = SVR(kernel='linear',C=C)
+#    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
+#    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
     scaler = StandardScaler()
+    X_train = scaler.fit_transform(train_features)
+    X_test = scaler.transform(val_features)
+    clf.fit(X_train,train_scores)
+    return clf.score(X_test,val_scores)
+def grid_search(C_list,trainval_content):
+    best_score = -100
+    best_C = C_list[0]
+    for C in C_list:
+        cv_score = Parallel(n_jobs=-1)(delayed(single_split)(trainval_content,cv_index,C) for cv_index in range(5))
+        avg_cv_score = np.average(cv_score)
+        if(avg_cv_score>best_score):
+            best_score = avg_cv_score
+            best_C = C
+    return best_C
 
+def train_test(r):
+    train_features,train_scores,test_features,test_scores,trainval_content,test_names = trainval_split(scores_df['content'].unique(),r)
+    print(test_names)
+    best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
+#    scaler = MinMaxScaler(feature_range=(-1,1))  
+    scaler = StandardScaler()
     scaler.fit(train_features)
     X_train = scaler.transform(train_features)
     X_test = scaler.transform(test_features)
-    grid_svr = GridSearchCV(SVR(kernel='linear'),param_grid = {"C":np.logspace(-7,2,10,base=2)},cv=5)
-    grid_svr.fit(X_train, train_scores)
-    preds =grid_svr.predict(X_test)
-    test_zip = list(zip(test_vids,test_scores,preds))
+    best_svr =SVR(kernel='linear',C=best_C) 
+    best_svr.fit(X_train,train_scores)
+    preds = best_svr.predict(X_test)
+
+
+    test_zip = list(zip(test_names,test_scores,preds))
     return test_zip
 #    test_zips.append(test_zip)
 #
@@ -91,9 +119,10 @@ def single_run_svr(r):
 #    print(srocc_test)
 #    srocc_list.append(srocc_test[0])
 
-#test_zips = Parallel(n_jobs=-1)(delayed(single_run_svr)(r) for r in range(100))
-#dump(test_zips,'./preds/hdrchipqa_preds.z')
-test_zips = load('./preds/hdrchipqa_preds.z')
+test_zips = Parallel(n_jobs=-1)(delayed(train_test)(r) for r in range(100))
+dump(test_zips,'./preds/brisque_preds.z')
+test_zips = load('./preds/brisque_preds.z')
+print(test_zips)
 def find(lst, a):
     return [i for i, x in enumerate(lst) if x==a]
 
@@ -149,5 +178,5 @@ plt.scatter(npreds,nscores,label='predictions')
 plt.plot(x,y,color='#ff7f0e',linewidth=3,label='fit')
 plt.ylabel('MOS')
 plt.xlabel('Prediction')
-plt.savefig('./images/hdrchipqa_predictions.png',bbox_inches='tight')
+plt.savefig('./images/brisque_predictions.png',bbox_inches='tight')
 

@@ -30,22 +30,28 @@ X = []
 tzf_names = []
 for tzf in test_zip_files:
     test_zips = load(tzf)
-    tzf_names.append(os.path.splitext(os.path.basename(tzf))[0])
+    tzf_names.append(os.path.splitext(os.path.basename(tzf))[0].split('_')[0].upper())
 
     scores = []
     names =[]
     preds =[]
     srocc_list = []
     for v in test_zips:
-    #     print(v)
+        current_scores = []
+        current_preds  = []
         for l in v:
             names.append(l[0])
             scores.append(l[1])
             preds.append(l[2])
 
-        preds_srocc = spearmanr(preds,scores)
+            current_scores.append(l[1])
+            current_preds.append(l[2])
+
+        preds_srocc = spearmanr(current_preds,current_scores)
+        print(preds_srocc)
         srocc_list.append(preds_srocc[0])
     X.append(srocc_list)
+print(tzf_names)
 X = np.asarray(X)
 X = pd.DataFrame(X.T,columns=tzf_names)
     
@@ -58,6 +64,7 @@ plt.figure()
 plt.clf()
 
 meds = X.median()
+print(meds)
 meds.sort_values(ascending=False, inplace=True)
 X = X[meds.index]
 X.boxplot()
