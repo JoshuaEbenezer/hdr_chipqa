@@ -242,8 +242,8 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
         
-        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=3)
-        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=3)
+        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=2)
+        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=2)
 
         Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,C=0.001)
         dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,C=0.001)

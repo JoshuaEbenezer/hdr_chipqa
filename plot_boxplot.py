@@ -30,53 +30,46 @@ X = []
 tzf_names = []
 for tzf in test_zip_files:
     test_zips = load(tzf)
-    tzf_names.append(os.path.splitext(os.path.basename(tzf))[0])
+    tzf_names.append(os.path.splitext(os.path.basename(tzf))[0].split('_')[0].upper())
 
     scores = []
     names =[]
     preds =[]
     srocc_list = []
     for v in test_zips:
-    #     print(v)
+        current_scores = []
+        current_preds  = []
         for l in v:
             names.append(l[0])
             scores.append(l[1])
             preds.append(l[2])
 
-        preds_srocc = spearmanr(preds,scores)
+            current_scores.append(l[1])
+            current_preds.append(l[2])
+
+        preds_srocc = spearmanr(current_preds,current_scores)
         srocc_list.append(preds_srocc[0])
     X.append(srocc_list)
-X = np.asarray(X)                                                                                                                                                                                                                                              
-print(X.shape)
-#    # print(names)
-#    # print(scores)
-#    nscores= []
-#    npreds = []
-#    nset = set(names)
-#    print(len(names))
-#    print(len(nset))
-#    # print(nset)
-#    for n in nset:
-#        indices = find(names,n)
-#        nscores.append(np.mean([scores[i] for i in indices]))
-#        npreds.append(np.mean([preds[i] for i in indices]))
-#    # print(nscores,npreds)
-#
-#    print(len(nscores),len(npreds))
-#    preds_srocc = spearmanr(npreds,nscores)
-#    
-#
-#
-#
+print(tzf_names)
+X = np.asarray(X)
+X = pd.DataFrame(X.T,columns=tzf_names)
+    
+
+
+
 import matplotlib
 matplotlib.rcParams.update({'font.size':15})
 
+plt.figure(figsize=(12, 6), dpi=80)
 
-plt.figure(figsize=(8, 6), dpi=80)
 plt.clf()
 
+meds = X.median()
+print(meds)
+meds.sort_values(ascending=False, inplace=True)
+X = X[meds.index]
+X.boxplot()
 print(len(tzf_names))
-plt.boxplot(X.T)
 #plt.xticks(np.arange(len(tzf_names))+1, tzf_names)
 
 
