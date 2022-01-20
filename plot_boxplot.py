@@ -70,12 +70,14 @@ print(X.shape)
 #
 import matplotlib
 matplotlib.rcParams.update({'font.size':15})
-plt.figure()
+
+
+plt.figure(figsize=(8, 6), dpi=80)
 plt.clf()
 
 print(len(tzf_names))
 plt.boxplot(X.T)
-plt.xticks(np.arange(len(tzf_names))+1, tzf_names)
+#plt.xticks(np.arange(len(tzf_names))+1, tzf_names)
 
 
 plt.ylabel('SRCC')
