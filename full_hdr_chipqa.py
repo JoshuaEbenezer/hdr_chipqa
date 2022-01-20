@@ -321,13 +321,13 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         chroma_gradient_y = cv2.Sobel(chroma,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma = np.sqrt(chroma_gradient_x**2+chroma_gradient_y**2)
         gradient_mag_chroma = gradient_mag_chroma/np.amax(gradient_mag_chroma)
-        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1e-3)
+        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=0.001)
 
         chroma_gradient_x_down= cv2.Sobel(chroma_down,ddepth=-1,dx=1,dy=0)
         chroma_gradient_y_down = cv2.Sobel(chroma_down,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma_down = np.sqrt(chroma_gradient_x_down**2+chroma_gradient_y_down**2)
         gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
-        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1e-3)
+        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=0.001)
 
 
         corr = chroma_grad_mscn*gradY_mscn
@@ -408,7 +408,7 @@ def sts_fromvid(args):
     outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=65,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
+    Parallel(n_jobs=35,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
             (i,files,outfolder,args.hdr,framenos_list)\
             for i in range(len(files)))
 #    for i in range(len(files)):

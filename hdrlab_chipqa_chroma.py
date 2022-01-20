@@ -258,9 +258,10 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
                         chromatic_adaptation_transform='CAT02',\
                         cctf_decoding=colour.models.eotf_PQ_BT2100)
                 lab = colour.XYZ_to_hdr_CIELab(xyz, illuminant=[ 0.3127, 0.329 ], Y_s=0.2, Y_abs=100, method='Fairchild 2011')
-                Y_pq = Y_pq/1023.0
+#                Y_pq = Y_pq/1023.0
 
-            except:
+            except Exception as e:
+                print(e)
                 f = open("chipqa_yuv_reading_error.txt", "a")
                 f.write(filename+"\n")
                 f.close()
@@ -278,7 +279,19 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         
         
         
-        chroma_feats = ChipQA.save_stats.chroma_feats(lab)
+#        chroma_feats = ChipQA.save_stats.chroma_feats(lab)
+
+        chroma = np.sqrt(lab[:,:,1]**2+lab[:,:,2]**2)
+
+        print(np.amin(chroma),np.amax(chroma))
+
+        chroma_down = cv2.resize(chroma,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
+
+        chroma_mscn = ChipQA.save_stats.compute_image_mscn_transform(chroma,0.001)
+        chroma_mscn_down = ChipQA.save_stats.compute_image_mscn_transform(chroma_down,0.001)
+        chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn.flatten())
+        dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn_down.flatten())
+        chroma_feats = np.asarray([chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma])
 
         feats =chroma_feats
 

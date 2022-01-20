@@ -1,5 +1,4 @@
 import time
-import colour
 import pandas as pd
 from utils.hdr_utils import hdr_yuv_read
 from utils.csf_utils import blockwise_csf,windows_csf
@@ -242,8 +241,8 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
         
-        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=2)
-        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=2)
+        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=3)
+        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=3)
 
         Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,C=0.001)
         dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,C=0.001)
@@ -304,11 +303,11 @@ def sts_fromvid(args):
     outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=60,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
-            (i,files,outfolder,args.hdr,framenos_list)\
-            for i in range(len(files)))
-#    for i in range(len(files)):
-#        full_hdr_chipqa_forfile(i,files,outfolder,args.hdr,framenos_list)
+#    Parallel(n_jobs=80)(delayed(full_hdr_chipqa_forfile)\
+#            (i,files,outfolder,args.hdr,framenos_list)\
+#            for i in range(len(files)))
+    for i in range(len(files)):
+        full_hdr_chipqa_forfile(i,files,outfolder,args.hdr,framenos_list)
 #    for i in range(len(files)):
 #        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='exp'='nakarushton',use_csf=False,use_lnl=False)
              

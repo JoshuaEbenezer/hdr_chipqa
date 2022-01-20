@@ -77,7 +77,6 @@ def trainval_split(trainval_content,r):
 #        else:
 #        featfile_name = vid +'.z'
         featfile_name = vid+'_upscaled.z'
-        score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
         feat_file3 = load(os.path.join(feature_folder3,featfile_name))
@@ -86,13 +85,15 @@ def trainval_split(trainval_content,r):
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 
-#        feature = np.concatenate((feature1,feature3[0:36],feature3[168-12:],feature3[72:84]),axis=0)
-#        feature = feature2
+#        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature3[72:84]),axis=0)
+        feature = feature3[72:76]
+        print(feature)
 #        print(feature.shape)
-        feature = feature3[0:36]
+#        feature = feature3[0:36]
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
+        score = scores[i]
         if(scores_df.loc[i]['content'] in train):
             train_features.append(feature)
             train_scores.append(score)
