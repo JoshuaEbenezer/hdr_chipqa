@@ -28,3 +28,4 @@
 /mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/720p_4.6M_football2_upscaled.yuv
 /mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/720p_4.6M_football8_upscaled.yuv
 /mnt/7e60dcd9-907d-428e-970c-b7acf5c8636a/fall2021_hdr_upscaled_yuv/720p_4.6M_football5_upscaled.yuv
+/media/josh-admin/seagate/fall2021_hdr_upscaled_yuv/4k_ref_Daylight1_upscaled.yuv
