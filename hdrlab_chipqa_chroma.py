@@ -248,8 +248,6 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
             if(ret==False):
                 break
             # since this is SDR, the Y is gamma luma, not PQ luma, but is named with the PQ suffix for convenience
-            Y_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-            Y_pq = Y_pq/255.0
 
             lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
             lab = lab.astype(np.float32)

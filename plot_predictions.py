@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 
-scores_df = pd.read_csv('/home/josh-admin/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content']=[ i.split('_')[2] for i in scores_df['video'] ]

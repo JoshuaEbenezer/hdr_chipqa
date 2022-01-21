@@ -83,8 +83,8 @@ def trainval_split(trainval_content,r):
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
 
-        feature = np.concatenate((feature1,feature2),axis=0)
-#        feature = feature2
+#        feature = np.concatenate((feature1,feature2),axis=0)
+        feature = feature2[0:36]
 #        print(feature.shape)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
