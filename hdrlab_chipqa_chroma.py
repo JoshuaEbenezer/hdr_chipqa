@@ -180,18 +180,16 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     # dsize
     dsize = (int(scale_percent*h),int(scale_percent*w))
 
-    # opening file object
+
+
+
     if(hdr):
         dis_file_object = open(filename)
-        prevY_pq,_,_ = hdr_yuv_read(dis_file_object,0,h,w)
-        prevY_pq = prevY_pq.astype(np.float32)
     else:
         ret, bgr = cap.read()
         if(ret==False):
             return
         prevY_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-
-
     # ST chip centers and parameters
     step = st_time_length
     cy, cx = np.mgrid[step:h-step*4:step*4, step:w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
@@ -202,31 +200,9 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     dr2 = len(np.arange(step,dsize[1]-step*4,step*4)) 
 
     
-    C = 1
-    prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
 
-    print(prevY_pq.shape,prevY_pq_down.shape)
-    grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-    graddown_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
-
-
-    gradient_x = cv2.Sobel(prevY_pq,ddepth=-1,dx=1,dy=0)
-    gradient_y = cv2.Sobel(prevY_pq,ddepth=-1,dx=0,dy=1)
-    gradient_mag = np.sqrt(gradient_x**2+gradient_y**2)    
-
-    
-    gradient_x_down = cv2.Sobel(prevY_pq_down,ddepth=-1,dx=1,dy=0)
-    gradient_y_down = cv2.Sobel(prevY_pq_down,ddepth=-1,dx=0,dy=1)
-    gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
     i = 0
 
-    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=1e-3)
-    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=1e-3)
-
-
-    grad_img_buffer[i,:,:] =gradY_mscn 
-    graddown_img_buffer[i,:,:]=dgradY_mscn 
-    i = i+1
 
     
 
@@ -237,6 +213,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
     feat_sd_list =  []
     sd_list= []
     framenum=0
+    print('begin')
     
     while(True):
         # uncomment for FLOPS
@@ -283,12 +260,11 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
 
         chroma = np.sqrt(lab[:,:,1]**2+lab[:,:,2]**2)
 
-        print(np.amin(chroma),np.amax(chroma))
 
         chroma_down = cv2.resize(chroma,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
 
-        chroma_mscn = ChipQA.save_stats.compute_image_mscn_transform(chroma,0.001)
-        chroma_mscn_down = ChipQA.save_stats.compute_image_mscn_transform(chroma_down,0.001)
+        chroma_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(chroma,1)
+        chroma_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(chroma_down,1)
         chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn.flatten())
         dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn_down.flatten())
         chroma_feats = np.asarray([chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma])
