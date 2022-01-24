@@ -287,10 +287,14 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
             i=0
     X1 = np.average(spatavg_list,axis=0)
     X2 = np.average(sd_list,axis=0)
+    print(X1.shape,X2.shape)
+#    try:
     X = np.concatenate((X1,X2),axis=0)
     train_dict = {"features":X}
     filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     joblib.dump(train_dict,filename_out)
+#    except Exception as e:
+#        print(e)
     return
 
 

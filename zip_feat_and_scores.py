@@ -21,8 +21,10 @@ if(dataset=='apv'):
     score_csv = pd.read_csv(csv_file)
 
 folder =args.input_folder 
+folder2 = './features/livestream_chroma_ggd'
 
 filenames = glob.glob(os.path.join(folder,'*.z'))
+filenames2 = glob.glob(os.path.join(folder2,'*.z'))
 feats = []
 scores = []
 ns = []
@@ -33,16 +35,21 @@ for i,file in enumerate(sorted(filenames)):
     yuv_fname = os.path.splitext(fname)[0]+'.mp4'
 
     if(dataset=='apv'):
-         name = os.path.splitext(fname)[0]+'.mp4'
-         score = score_csv[score_csv['video'] ==name].mos.iloc[0]
+         name = os.path.splitext(fname)[0]+'.yuv'
+         score = score_csv[score_csv['video'] ==name].MOS.iloc[0]
     X = load(file)
+#    X2 = load(filenames2[i])
     print(X)
-    x = X['features']
-    print(x.shape)
+    x1 = X['features']
+#    x2 = X2['features']
+    x = np.concatenate((x1[0:72],x1[72:84],x1[168:]),0)
+#    print(x.shape)
     y = score
+#
+#
+#    print(x2)
+#    x =np.concatenate((x,x2),0)
 
-
-    x = np.asarray(x)
 
     feats.append(x)
     scores.append(y)
