@@ -461,7 +461,7 @@ def sts_fromvid(args):
         outfolder = './features/chipqa_global_logit1'#+str(delta)
         if(os.path.exists(outfolder)==False):
             os.mkdir(outfolder)
-        Parallel(n_jobs=40)(delayed(sts_fromfilename)\
+        Parallel(n_jobs=80)(delayed(sts_fromfilename)\
                 (i,files,framenos_list,outfolder,ws,hs,nl_method='logit',nl_param=delta, use_csf=False,use_gnl=True,use_lnl=False)\
                 for i in range(len(files)))
 #    for i in range(len(files)):
