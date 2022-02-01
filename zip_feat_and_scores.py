@@ -41,9 +41,9 @@ for i,file in enumerate(sorted(filenames)):
     X2 = load(filenames2[i])
     print(X)
     x1 = X['features']
-    x2 = X2['features']
-    print(x2.shape)
-    x = np.concatenate((x1[0:84],x1[120:156],x1[168:]),0)
+#    x2 = X2['features']
+    x = np.concatenate((x1[0:72],x1[72:84],x1[120:156],x1[168:]),0)
+#    print(x)
 #    print(x.shape)
     y = score
 #
