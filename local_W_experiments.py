@@ -221,7 +221,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
             try:
 
                 Y_pq,U_pq,V_pq = hdr_yuv_read(dis_file_object,framenum,h,w)
-                Y_pq = Y_pq/1023.0
+#                Y_pq = Y_pq/1023.0
 
             except:
                 f = open("chipqa_yuv_reading_error.txt", "a")
@@ -305,7 +305,7 @@ def sts_fromvid(args):
     outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=80,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
+    Parallel(n_jobs=50,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
             (i,files,outfolder,args.hdr,framenos_list)\
             for i in range(len(files)))
 #    for i in range(len(files)):

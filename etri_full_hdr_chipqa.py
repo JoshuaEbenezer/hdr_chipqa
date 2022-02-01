@@ -246,23 +246,24 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
                 break
             else:
                 framenum=framenum+1
-            try:
+            #try:
 
-                Y_pq,U_pq,V_pq = hdr_yuv_read(dis_file_object,framenum,h,w)
-                YUV = np.stack((Y_pq,U_pq,V_pq),axis=2)
-                YUV = YUV/1023.0
-                rgb_frame = colour.YCbCr_to_RGB(YUV,K = [0.2627,0.0593])
+            Y_pq,U_pq,V_pq = hdr_yuv_read(dis_file_object,framenum,h,w)
+            YUV = np.stack((Y_pq,U_pq,V_pq),axis=2)
+            YUV = YUV/1023.0
+            rgb_frame = colour.YCbCr_to_RGB(YUV)
+            rgb_frame = rgb_frame.astype(np.float32)
 
-                lab = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2LAB)
-                lab = lab.astype(np.float32)
-                C = 4
+            lab = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2LAB)
+            lab = lab.astype(np.float32)
+            C = 4
 #                Y_pq = Y_pq/1023.0
 
-            except:
-                f = open("chipqa_yuv_reading_error.txt", "a")
-                f.write(filename+"\n")
-                f.close()
-                break
+           # except:
+           #     f = open("chipqa_yuv_reading_error.txt", "a")
+           #     f.write(filename+"\n")
+           #     f.close()
+           #     break
         else:
             ret, bgr = cap.read()
             if(ret==False):
@@ -394,14 +395,18 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
 def sts_fromvid(args):
 
     if(args.hdr):
-        csv_file = './fall2021_yuv_rw_info.csv'
+        csv_file = './etri_metadata.csv'
         csv_df = pd.read_csv(csv_file)
         print(csv_df)
-        print([f for f in csv_df["yuv"]])
-        files = [os.path.join(args.input_folder,f[:-4]+'_upscaled.yuv') for f in csv_df["yuv"]]
+        files = glob.glob(os.path.join(args.input_folder,'*.yuv'))  
         print(files)
-        fps = csv_df["fps"]
-        framenos_list = csv_df["framenos"]
+        framenos_list = []
+        for f in files:
+            content = os.path.basename(f).split('_')[0]
+            content_row =csv_df.loc[csv_df['Abbrev_Name']==content]
+            framenums = content_row['framenum']
+            framenos_list.append(int(framenums))
+
     else:
         files = glob.glob(os.path.join(args.input_folder,'*.mp4'))
         print(files)

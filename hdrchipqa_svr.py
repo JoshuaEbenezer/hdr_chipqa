@@ -50,7 +50,7 @@ def results(all_preds,all_dmos):
 
 
 
-scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv('/home/josh-admin/code/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content'] = [v.split('_')[2] for v in scores_df['video']]
@@ -65,7 +65,7 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/fall21_hdr_brisque_nl4'
+    feature_folder= './features/local_W_experiments/W63'
     feature_folder2= '../hdr_brisque/features/brisque_pq_upscaled_features'
     feature_folder3= './features/fall21_hdr_full_hdrchipqa'
 
@@ -85,9 +85,8 @@ def trainval_split(trainval_content,r):
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
 
-#        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature3[72:84]),axis=0)
-        feature = feature3[72:76]
-        print(feature)
+        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature3[72:84]),axis=0)
+#        feature = feature3[72:76]
 #        print(feature.shape)
 #        feature = feature3[0:36]
         feature = np.nan_to_num(feature)
