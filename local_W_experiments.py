@@ -118,7 +118,7 @@ def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
         if(delta%2==0):
             Y_transform[Y<0] = -Y_transform[Y<0] 
     elif(nl_method=='exp'):
-        W = 63
+        W = 9
         maxY = scipy.ndimage.maximum_filter(Y,size=(W,W))
         minY = scipy.ndimage.minimum_filter(Y,size=(W,W))
         delta = nl_param

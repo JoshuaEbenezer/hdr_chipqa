@@ -65,7 +65,7 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/
+    feature_folder= './features/'
     feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
 
     train_names = []

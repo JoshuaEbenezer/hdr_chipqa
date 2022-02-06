@@ -50,7 +50,7 @@ def results(all_preds,all_dmos):
 
 
 
-scores_df = pd.read_csv('/home/josh-admin/code/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content'] = [v.split('_')[2] for v in scores_df['video']]
@@ -65,10 +65,11 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/local_W_experiments/W17_without1023div'
+    feature_folder= './features/local_W_experiments/W9'
     feature_folder2='./features/chroma_ggd_feats'#  '../hdr_colorbleed/features/lab_chroma_nl'
     feature_folder3= './features/fall21_hdr_full_hdrchipqa'
     feature_folder4= '../hdr_colorbleed/features/lab_chroma_nl'
+    feature_folder5 = '../hdr_colorbleed/features/colorbleed_gradchroma_correlation_nl'
 
     train_names = []
     val_names = [] 
@@ -81,17 +82,22 @@ def trainval_split(trainval_content,r):
         feat_file = load(os.path.join(feature_folder,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
         feat_file3 = load(os.path.join(feature_folder3,featfile_name))
-#        feat_file4 = load(os.path.join(feature_folder4,featfile_name))
+        feat_file4 = load(os.path.join(feature_folder4,featfile_name))
+        feat_file5 = load(os.path.join(feature_folder5,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
-#        feature4 = np.asarray(feat_file4['features'],dtype=np.float32)
+        feature4 = np.asarray(feat_file4['features'],dtype=np.float32)
+        feature5 = np.asarray(feat_file5['features'],dtype=np.float32)
 
-#        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84]),0)#,feature4[0:2],\
-#                feature4[18:20],feature4[36:38],feature4[54:56]),axis=0)
-#        feature = np.concatenate((feature1,feature3[0:36],feature2[0:4],feature3[76:84]),axis=0)
-        feature = feature1[36:72] #[72:76]
+#        print(feature5.shape)
+#        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84],feature4[0:2],\
+#                feature4[18:20],feature4[36:38],feature4[54:56],feature5[0:8]),axis=0)
+        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84]),axis=0)
+                
+#        feature = np.concatenate((feature1[36:72],feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84]),axis=0)
+#        feature = feature1[0:36] #[72:76]
 #        print(feature)
 #        print(feature.shape)
 #        feature = feature3[0:36]
