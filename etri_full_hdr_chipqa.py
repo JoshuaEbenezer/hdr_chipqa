@@ -118,8 +118,9 @@ def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
         if(delta%2==0):
             Y_transform[Y<0] = -Y_transform[Y<0] 
     elif(nl_method=='exp'):
-        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
-        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
+        W = 17
+        maxY = scipy.ndimage.maximum_filter(Y,size=(W,W))
+        minY = scipy.ndimage.minimum_filter(Y,size=(W,W))
         delta = nl_param
         Y = -1+(Y-minY)* 2/(1e-3+maxY-minY)
         Y_transform =  np.exp(np.abs(Y)*delta)-1
