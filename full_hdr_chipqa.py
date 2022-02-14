@@ -121,8 +121,8 @@ def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
         maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
         minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
         delta = nl_param
-        Y = -4+(Y-minY)* 8/(1e-3+maxY-minY)
-        Y_transform =  np.exp(np.abs(Y)**delta)-1
+        Y = -1+(Y-minY)* 2/(1e-3+maxY-minY)
+        Y_transform =  np.exp(np.abs(Y)*delta)-1
         Y_transform[Y<0] = -Y_transform[Y<0]
     elif(nl_method=='sigmoid'):
         avg_luminance = scipy.ndimage.gaussian_filter(Y,sigma=7.0/6.0)
@@ -257,6 +257,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
                         chromatic_adaptation_transform='CAT02',\
                         cctf_decoding=colour.models.eotf_PQ_BT2100)
                 lab = colour.XYZ_to_hdr_CIELab(xyz, illuminant=[ 0.3127, 0.329 ], Y_s=0.2, Y_abs=100, method='Fairchild 2011')
+                C = 4
 #                Y_pq = Y_pq/1023.0
 
             except:
@@ -270,6 +271,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
                 break
             # since this is SDR, the Y is gamma luma, not PQ luma, but is named with the PQ suffix for convenience
             Y_pq = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+            C = 1
 #            Y_pq = Y_pq/255.0
 
             lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
@@ -278,18 +280,31 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         
         Y_pq = Y_pq.astype(np.float32)
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_LANCZOS4)
-        
-        
-        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=1)
-        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=1)
 
+        # MSCN of Y
+        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C)
+        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C)
+
+        # BRISQUE of PQ
+        brisque_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn)
+        brisque_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn)
+        brisque = np.concatenate((brisque_fullscale,brisque_halfscale),axis=0)
+        
+        
+        # nonlinearity on PQ
+        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=4)
+        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=4)
+
+        # MSCN of NL on PQ
         Y_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_pq_nl,C=0.001)
         dY_mscn_pq_nl,_,_ = compute_image_mscn_transform(Y_down_pq_nl,C=0.001)
 
+        # BRISQUE features
         brisque_nl_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn_pq_nl)
         brisque_nl_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn_pq_nl)
         brisque_nl = np.concatenate((brisque_nl_fullscale,brisque_nl_halfscale),axis=0)
 
+        # Gradient on PQ
         gradient_x = cv2.Sobel(Y_pq,ddepth=-1,dx=1,dy=0)
         gradient_y = cv2.Sobel(Y_pq,ddepth=-1,dx=0,dy=1)
         gradient_mag = np.sqrt(gradient_x**2+gradient_y**2)    
@@ -299,50 +314,93 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         gradient_y_down = cv2.Sobel(Y_down_pq,ddepth=-1,dx=0,dy=1)
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
+        # Gradient nonlinearity
+        gradient_x_nl = cv2.Sobel(Y_pq_nl,ddepth=-1,dx=1,dy=0)
+        gradient_y_nl = cv2.Sobel(Y_pq_nl,ddepth=-1,dx=0,dy=1)
+        gradient_mag_nl = np.sqrt(gradient_x_nl**2+gradient_y_nl**2)    
 
-        Y_mscn,_,_ = compute_image_mscn_transform(Y_pq,C=4)
-        dY_mscn,_,_ = compute_image_mscn_transform(Y_down_pq,C=4)
-
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C=4)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C=4)
-
-        brisque_fullscale = ChipQA.save_stats._extract_subband_feats(Y_mscn)
-        brisque_halfscale = ChipQA.save_stats._extract_subband_feats(dY_mscn)
-        brisque = np.concatenate((brisque_fullscale,brisque_halfscale),axis=0)
+        
+        gradient_x_down_nl = cv2.Sobel(Y_down_pq_nl,ddepth=-1,dx=1,dy=0)
+        gradient_y_down_nl = cv2.Sobel(Y_down_pq_nl,ddepth=-1,dx=0,dy=1)
+        gradient_mag_down_nl = np.sqrt(gradient_x_down_nl**2+gradient_y_down_nl**2)    
 
 
+        # MSCN of gradient
+        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
+        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
+
+        # MSCN of gradient NL
+        gradY_mscn_nl,_,_ = compute_image_mscn_transform(gradient_mag_nl,C)
+        dgradY_mscn_nl,_,_ = compute_image_mscn_transform(gradient_mag_down_nl,C)
+
+
+
+        # Chroma
         chroma = np.sqrt(lab[:,:,1]**2+lab[:,:,2]**2)
         chroma_down = cv2.resize(chroma,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
-        chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma.flatten())
-        dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_down.flatten())
+        chroma_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(chroma,1)
+        chroma_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(chroma_down,1)
+        chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn.flatten())
+        dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn_down.flatten())
         chroma_ggd_feats = np.asarray([chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma])
 
+        chroma_nl =Y_compute_lnl(chroma,'exp',4)
+        chroma_down_nl = Y_compute_lnl(chroma_down,'exp',4)
+        chroma_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(chroma_nl,C=0.001)
+        chroma_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(chroma_down_nl,C=0.001)
+        chroma_alpha,chroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn.flatten())
+        dchroma_alpha,dchroma_sigma = ChipQA.save_stats.estimateggdparam(chroma_mscn_down.flatten())
+        chroma_ggd_feats_nl = np.asarray([chroma_alpha,chroma_sigma,dchroma_alpha,dchroma_sigma])
+
+        # Chroma gradient correlation
         chroma_gradient_x = cv2.Sobel(chroma,ddepth=-1,dx=1,dy=0)
         chroma_gradient_y = cv2.Sobel(chroma,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma = np.sqrt(chroma_gradient_x**2+chroma_gradient_y**2)
         gradient_mag_chroma = gradient_mag_chroma/np.amax(gradient_mag_chroma)
-        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C=1e-3)
+        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C)
 
         chroma_gradient_x_down= cv2.Sobel(chroma_down,ddepth=-1,dx=1,dy=0)
         chroma_gradient_y_down = cv2.Sobel(chroma_down,ddepth=-1,dx=0,dy=1)
         gradient_mag_chroma_down = np.sqrt(chroma_gradient_x_down**2+chroma_gradient_y_down**2)
         gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
-        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C=1e-3)
+        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C)
 
 
+        # colorbleed features
         corr = chroma_grad_mscn*gradY_mscn
         corr_down = chroma_grad_mscn_down*dgradY_mscn
         alpha1, N1, _, _, lsq1, rsq1 = ChipQA.save_stats.aggd_features(corr)
         dalpha1, dN1 ,_, _, dlsq1, drsq1 = ChipQA.save_stats.aggd_features(corr_down)
         colorbleed_features =  np.array([alpha1, N1, lsq1**2, rsq1**2,dalpha1, dN1,dlsq1**2, drsq1**2])
 
+        # Chroma gradient correlation after NL
+        chroma_gradient_x = cv2.Sobel(chroma_nl,ddepth=-1,dx=1,dy=0)
+        chroma_gradient_y = cv2.Sobel(chroma_nl,ddepth=-1,dx=0,dy=1)
+        gradient_mag_chroma = np.sqrt(chroma_gradient_x**2+chroma_gradient_y**2)
+        gradient_mag_chroma = gradient_mag_chroma/np.amax(gradient_mag_chroma)
+        chroma_grad_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma,C)
+
+        chroma_gradient_x_down= cv2.Sobel(chroma_down_nl,ddepth=-1,dx=1,dy=0)
+        chroma_gradient_y_down = cv2.Sobel(chroma_down_nl,ddepth=-1,dx=0,dy=1)
+        gradient_mag_chroma_down = np.sqrt(chroma_gradient_x_down**2+chroma_gradient_y_down**2)
+        gradient_mag_chroma_down = gradient_mag_chroma_down/np.amax(gradient_mag_chroma_down)
+        chroma_grad_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_chroma_down,C)
+
+
+        # NL colorbleed features
+        corr = chroma_grad_mscn*gradY_mscn
+        corr_down = chroma_grad_mscn_down*dgradY_mscn
+        alpha1, N1, _, _, lsq1, rsq1 = ChipQA.save_stats.aggd_features(corr)
+        dalpha1, dN1 ,_, _, dlsq1, drsq1 = ChipQA.save_stats.aggd_features(corr_down)
+        colorbleed_features_nl =  np.array([alpha1, N1, lsq1**2, rsq1**2,dalpha1, dN1,dlsq1**2, drsq1**2])
         # [0:36] - BRISQUE
         # [36:72] - BRISQUE after NL
         # [72:76] - Chroma GGD
         # [76:84] - Chroma Colorbleed
-        feats = np.concatenate((brisque,brisque_nl,chroma_ggd_feats,colorbleed_features),axis=0)
+        feats = np.concatenate((brisque,brisque_nl,chroma_ggd_feats,chroma_ggd_feats_nl, colorbleed_features, colorbleed_features_nl),axis=0)
+        only_sd_feats = np.concatenate((brisque_nl,chroma_ggd_feats_nl,colorbleed_features_nl),axis=0)
 
-        feat_sd_list.append(feats)
+        feat_sd_list.append(only_sd_feats)
         spatavg_list.append(feats)
 
         
@@ -408,7 +466,7 @@ def sts_fromvid(args):
     outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=65,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
+    Parallel(n_jobs=35,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
             (i,files,outfolder,args.hdr,framenos_list)\
             for i in range(len(files)))
 #    for i in range(len(files)):

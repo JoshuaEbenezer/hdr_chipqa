@@ -1,5 +1,4 @@
 import time
-import colour
 import pandas as pd
 from utils.hdr_utils import hdr_yuv_read
 from utils.csf_utils import blockwise_csf,windows_csf
@@ -118,8 +117,9 @@ def Y_compute_lnl(Y,nl_method='exp',nl_param=1):
         if(delta%2==0):
             Y_transform[Y<0] = -Y_transform[Y<0] 
     elif(nl_method=='exp'):
-        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
-        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
+        W = 17
+        maxY = scipy.ndimage.maximum_filter(Y,size=(W,W))
+        minY = scipy.ndimage.minimum_filter(Y,size=(W,W))
         delta = nl_param
         Y = -1+(Y-minY)* 2/(1e-3+maxY-minY)
         Y_transform =  np.exp(np.abs(Y)*delta)-1
@@ -220,7 +220,7 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
             try:
 
                 Y_pq,U_pq,V_pq = hdr_yuv_read(dis_file_object,framenum,h,w)
-                Y_pq = Y_pq/1023.0
+#                Y_pq = Y_pq/1023.0
 
             except:
                 f = open("chipqa_yuv_reading_error.txt", "a")
@@ -242,6 +242,8 @@ def full_hdr_chipqa_forfile(i,filenames,results_folder,hdr,framenos_list=[]):
         Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
         
         
+        Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=3)
+        Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=3)
         Y_pq_nl = Y_compute_lnl(Y_pq,nl_method='exp',nl_param=2)
         Y_down_pq_nl =Y_compute_lnl(Y_down_pq,nl_method='exp',nl_param=2)
 
@@ -304,7 +306,7 @@ def sts_fromvid(args):
     outfolder = args.results_folder
     if(os.path.exists(outfolder)==False):
         os.mkdir(outfolder)
-    Parallel(n_jobs=60,backend='multiprocessing')(delayed(full_hdr_chipqa_forfile)\
+    Parallel(n_jobs=20)(delayed(full_hdr_chipqa_forfile)\
             (i,files,outfolder,args.hdr,framenos_list)\
             for i in range(len(files)))
 #    for i in range(len(files)):

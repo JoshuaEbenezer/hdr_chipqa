@@ -65,7 +65,7 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/fall21hdr_chipqa__hdrlab_chroma_features'
+    feature_folder= './features/'
     feature_folder2= './features/fall21_hdr_chipqa_pq_upscaled_features'
 
     train_names = []
@@ -83,8 +83,8 @@ def trainval_split(trainval_content,r):
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
 
-        feature = np.concatenate((feature1,feature2),axis=0)
-#        feature = feature2
+#        feature = np.concatenate((feature1,feature2),axis=0)
+        feature = feature2[0:36]
 #        print(feature.shape)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
