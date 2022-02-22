@@ -22,9 +22,14 @@ if(dataset=='apv'):
 
 folder =args.input_folder 
 folder2 = '../hdr_colorbleed/features/livestream_rgb_C1'
+<<<<<<< HEAD
+=======
+folder3 = '../hdr_colorbleed/features/livestream_rgb_nl'
+>>>>>>> ab0b678e3b79461f8f9ee8ff5062f4c25dbb90ed
 
 filenames = glob.glob(os.path.join(folder,'*.z'))
 filenames2 = glob.glob(os.path.join(folder2,'*.z'))
+filenames3 = glob.glob(os.path.join(folder3,'*.z'))
 feats = []
 scores = []
 ns = []
@@ -39,15 +44,26 @@ for i,file in enumerate(sorted(filenames)):
          score = score_csv[score_csv['video'] ==name].MOS.iloc[0]
     X = load(file)
     X2 = load(filenames2[i])
-    print(X)
+    X3 = load(filenames3[i])
     x1 = X['features']
     x2 = X2['features']
-    print(x2)
+    x3 = X3['features']
+    print(fname,filenames2[i],filenames3[i])
+#    print(x2)
     print(x2.shape)
+<<<<<<< HEAD
 #    x = np.concatenate((x1[0:72],x1[72:84],x1[120:156],x1[168:],x2[0:4],x2[12:16],x2[4:12]),0)
     x = x1[0:36]
+=======
+    print(x3.shape)
+#    x = np.concatenate((x1[0:72],x1[120:156],x1[168:],x2,x3[0:36],x3[72:108],x3[108+36:108+72],x3[108+72:216],x3[216+36:216+72],x3[216+108:216+108+36]),0)
+#    x =np.concatenate((x1[0:72],x1[120:120+36],x1[168:],x3[36:72],x3[108:108+36],x3[108+72:216],x3[216+36:216+72],x3[216+108:216+108+36],x3[216+180:216+180+36]),0)
+#   x =np.concatenate((x1[0:84],x1[120:120+36],x1[168:],x2),0)
+#    x =np.concatenate((x1,x2),0)
+>>>>>>> ab0b678e3b79461f8f9ee8ff5062f4c25dbb90ed
 #    print(x)
-#    print(x.shape)
+    x = x2
+    print(x.shape)
     y = score
 #
 #

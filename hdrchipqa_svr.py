@@ -68,8 +68,14 @@ def trainval_split(trainval_content,r):
     feature_folder= './features/local_W_experiments/W17_without1023div/'
     feature_folder2='./features/chroma_ggd_feats'#  '../hdr_colorbleed/features/lab_chroma_nl'
     feature_folder3= './features/fall21_hdr_full_hdrchipqa'
+<<<<<<< HEAD
     feature_folder4= '../hdr_colorbleed/features/rgb'
     feature_folder5 = '../hdr_colorbleed/features/rgb_nl'
+=======
+    feature_folder4= '../hdr_colorbleed/features/lab_grad_corr_local_exp1'
+    feature_folder5 = '../hdr_colorbleed/features/lab_chroma_nl'
+    feature_folder6 = '../hdr_colorbleed/features/lab_grad_corr'
+>>>>>>> ab0b678e3b79461f8f9ee8ff5062f4c25dbb90ed
 
     train_names = []
     val_names = [] 
@@ -87,17 +93,23 @@ def trainval_split(trainval_content,r):
         feat_file3 = load(os.path.join(feature_folder3,featfile_name))
         feat_file4 = load(os.path.join(feature_folder4,featfile_name))
         feat_file5 = load(os.path.join(feature_folder5,featfile_name))
+        feat_file6 = load(os.path.join(feature_folder6,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
         feature4 = np.asarray(feat_file4['features'],dtype=np.float32)
         feature5 = np.asarray(feat_file5['features'],dtype=np.float32)
+        feature6 = np.asarray(feat_file6['features'],dtype=np.float32)
 
 #        print(feature5.shape)
 #        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84],feature4[0:2],\
 #                feature4[18:20],feature4[36:38],feature4[54:56],feature5[0:8]),axis=0)
+<<<<<<< HEAD
         feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature4),axis=0)
+=======
+        feature = np.concatenate((feature4.flatten(),feature2,feature5,feature3[0:36],feature3[168:],feature1,feature6.flatten()),axis=0)
+>>>>>>> ab0b678e3b79461f8f9ee8ff5062f4c25dbb90ed
                 
 #        feature = np.concatenate((feature1[36:72],feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84]),axis=0)
 #        feature = feature1[0:36] #[72:76]
