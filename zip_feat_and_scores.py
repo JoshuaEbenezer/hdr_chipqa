@@ -21,7 +21,7 @@ if(dataset=='apv'):
     score_csv = pd.read_csv(csv_file)
 
 folder =args.input_folder 
-folder2 = './features/livestream_chromaggd_colorbleed_nl'
+folder2 = '../hdr_colorbleed/features/livestream_rgb_C1'
 
 filenames = glob.glob(os.path.join(folder,'*.z'))
 filenames2 = glob.glob(os.path.join(folder2,'*.z'))
@@ -44,7 +44,8 @@ for i,file in enumerate(sorted(filenames)):
     x2 = X2['features']
     print(x2)
     print(x2.shape)
-    x = np.concatenate((x1[0:72],x1[72:84],x1[120:156],x1[168:],x2[0:4],x2[12:16],x2[4:12]),0)
+#    x = np.concatenate((x1[0:72],x1[72:84],x1[120:156],x1[168:],x2[0:4],x2[12:16],x2[4:12]),0)
+    x = x1[0:36]
 #    print(x)
 #    print(x.shape)
     y = score
