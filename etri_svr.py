@@ -72,6 +72,7 @@ def trainval_split(trainval_content,r):
 #    feature_folder= "/home/ubuntu/bitstream_mode3_p1204_3/features/p1204_etri_features"
 
     feature_folder= './features/etri_fullhdrchipqa'
+    feature_folder2= '../hdr_colorbleed/features/etri_rgb_C1e-3'
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
@@ -81,8 +82,10 @@ def trainval_split(trainval_content,r):
         featfile_name = vid+'.z'
         score = scores[i]
         feat_file = load(os.path.join(feature_folder,featfile_name))
-        feature = np.asarray(feat_file['features'],dtype=np.float32)
-        feature = np.concatenate((feature[0:84],feature[120:156],feature[168:]),0)
+        feature1 = np.asarray(feat_file['features'],dtype=np.float32)
+        feat_file2 = load(os.path.join(feature_folder2,featfile_name))
+        feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
+        feature = np.concatenate((feature1[0:72],feature1[120:156],feature1[168:],feature2),0)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
 #            print(vid)
@@ -194,8 +197,8 @@ def only_test(r):
 #srocc_list = train_test(0) 
 #print(srocc_list)
 srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(100))
-srcc_csv = pd.DataFrame(srocc_list,columns=['srcc','lcc','rmse','names'])
-srcc_csv.to_csv('results/etri_hdrchipqa_srcc_lcc_rmse_list.csv')
+#srcc_csv = pd.DataFrame(srocc_list,columns=['srcc','lcc','rmse','names'])
+#srcc_csv.to_csv('results/etri_hdrchipqa_srcc_lcc_rmse_list.csv')
 #srocc_list = np.nan_to_num(srocc_list)
 print("median srocc is")
 print(np.median([s[0] for s in srocc_list]))

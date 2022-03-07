@@ -68,14 +68,9 @@ def trainval_split(trainval_content,r):
     feature_folder= './features/local_W_experiments/W17_without1023div/'
     feature_folder2='./features/chroma_ggd_feats'#  '../hdr_colorbleed/features/lab_chroma_nl'
     feature_folder3= './features/fall21_hdr_full_hdrchipqa'
-<<<<<<< HEAD
     feature_folder4= '../hdr_colorbleed/features/rgb'
     feature_folder5 = '../hdr_colorbleed/features/rgb_nl'
-=======
-    feature_folder4= '../hdr_colorbleed/features/lab_grad_corr_local_exp1'
-    feature_folder5 = '../hdr_colorbleed/features/lab_chroma_nl'
-    feature_folder6 = '../hdr_colorbleed/features/lab_grad_corr'
->>>>>>> ab0b678e3b79461f8f9ee8ff5062f4c25dbb90ed
+    feature_folder6 = '../hdr_brisque/features/asymmetric_yrgb_nl/2_2'
 
     train_names = []
     val_names = [] 
@@ -105,11 +100,9 @@ def trainval_split(trainval_content,r):
 #        print(feature5.shape)
 #        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84],feature4[0:2],\
 #                feature4[18:20],feature4[36:38],feature4[54:56],feature5[0:8]),axis=0)
-<<<<<<< HEAD
-        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature4),axis=0)
-=======
-        feature = np.concatenate((feature4.flatten(),feature2,feature5,feature3[0:36],feature3[168:],feature1,feature6.flatten()),axis=0)
->>>>>>> ab0b678e3b79461f8f9ee8ff5062f4c25dbb90ed
+#        feature = np.concatenate((feature1,feature3[0:36],feature3[84:120],feature3[168:],feature4,feature5),axis=0)
+        feature = np.concatenate((feature1,feature3[0:36],feature3[84:120],feature3[168:],feature4,feature5),axis=0)
+
                 
 #        feature = np.concatenate((feature1[36:72],feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84]),axis=0)
 #        feature = feature1[0:36] #[72:76]
@@ -134,11 +127,11 @@ def trainval_split(trainval_content,r):
 #    print(len(train_names))
 #    print('Validation set')
 #    print(len(val_names))
-    return np.asarray(train_features),train_scores,np.asarray(val_features),val_scores,train
+    return np.asarray(train_features),train_scores,np.asarray(val_features),val_scores,train,val_names
 
 def single_split(trainval_content,cv_index,C):
 
-    train_features,train_scores,val_features,val_scores,_ = trainval_split(trainval_content,cv_index)
+    train_features,train_scores,val_features,val_scores,_,_ = trainval_split(trainval_content,cv_index)
     clf = svm.SVR(kernel='linear',C=C)
 #    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
 #    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
@@ -159,7 +152,7 @@ def grid_search(C_list,trainval_content):
     return best_C
 
 def train_test(r):
-    train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
+    train_features,train_scores,test_features,test_scores,trainval_content,test_names = trainval_split(scores_df['content'].unique(),r)
     best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
 #    scaler = MinMaxScaler(feature_range=(-1,1))  
     scaler = StandardScaler()

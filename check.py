@@ -1,9 +1,12 @@
 import numpy as np
+from joblib import load
+import os
+import glob
 import scipy.ndimage
 
-Y = 100*np.random.rand(8,8)
-print(Y.shape)
-avg_luminance = scipy.ndimage.gaussian_filter(Y,sigma=7.0/6.0,mode='reflect')
-print(avg_luminance.shape)
-print(avg_luminance)
-print(Y)
+feat_files = glob.glob(os.path.join('../hdr_colorbleed/features/livestream_rgb_C1sdrC1e-3hdr/','1Runner_1_p1*.z'))
+
+for f in feat_files:
+    print(f)
+    X = load(f)
+    print(X['features'][0])

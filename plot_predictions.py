@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 
-scores_df = pd.read_csv('/home/josh/hdr/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv('/home/lab-admin/code/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content']=[ i.split('_')[2] for i in scores_df['video'] ]
@@ -31,9 +31,11 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/fall21_hdr_brisque_nl4'
-    feature_folder2= '../hdr_brisque/features/brisque_pq_upscaled_features'
-    feature_folder3= './features/fall21_hdr_full_hdrchipqa'
+    feature_folder= './features/local_W_experiments/W17_without1023div/'
+    feature_folder2= './features/fall21_hdr_full_hdrchipqa'
+    feature_folder3= '../hdr_colorbleed/features/rgb'
+    feature_folder4 = '../hdr_colorbleed/features/rgb_nl'
+
 
     train_names = []
     val_names = [] 
@@ -47,13 +49,16 @@ def trainval_split(trainval_content,r):
         feat_file = load(os.path.join(feature_folder,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
         feat_file3 = load(os.path.join(feature_folder3,featfile_name))
+        feat_file4 = load(os.path.join(feature_folder4,featfile_name))
             
         feature1 = np.asarray(feat_file['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
+        feature4 = np.asarray(feat_file4['features'],dtype=np.float32)
+
+        feature = np.concatenate((feature1,feature2[0:36],feature2[84:120],feature2[168:],feature3,feature4),axis=0)
 
 #        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature3[72:84]),axis=0)
-        feature = feature3[0:36]
 #        print(feature.shape)
         feature = np.nan_to_num(feature)
 #        if(np.isnan(feature).any()):
@@ -120,8 +125,8 @@ def train_test(r):
 #    srocc_list.append(srocc_test[0])
 
 test_zips = Parallel(n_jobs=-1)(delayed(train_test)(r) for r in range(100))
-dump(test_zips,'./preds/brisque_preds.z')
-test_zips = load('./preds/brisque_preds.z')
+dump(test_zips,'./preds/hdrchipqa_preds.z')
+test_zips = load('./preds/hdrchipqa_preds.z')
 print(test_zips)
 def find(lst, a):
     return [i for i, x in enumerate(lst) if x==a]
@@ -178,5 +183,5 @@ plt.scatter(npreds,nscores,label='predictions')
 plt.plot(x,y,color='#ff7f0e',linewidth=3,label='fit')
 plt.ylabel('MOS')
 plt.xlabel('Prediction')
-plt.savefig('./images/brisque_predictions.png',bbox_inches='tight')
+plt.savefig('./images/hdrchipqa_predictions.png',bbox_inches='tight')
 
