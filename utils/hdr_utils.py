@@ -13,22 +13,19 @@ def fread(fid, nelements, dtype):
 
 
 
-def hdr_yuv_read(file_object,frame_num,height,width):
-    file_object.seek(frame_num*height*width*3)
-    y1 = fread(file_object,height*width,np.uint16)
-    u1 = fread(file_object,height*width//4,np.uint16)
-    v1 = fread(file_object,height*width//4,np.uint16)
-    y = np.reshape(y1,(height,width))
-    u = np.reshape(u1,(height//2,width//2)).repeat(2,axis=0).repeat(2,axis=1)
-    v = np.reshape(v1,(height//2,width//2)).repeat(2,axis=0).repeat(2,axis=1)
-    return y,u,v
 
-def yuv_read(filename,frame_num,height,width):
+def yuv_read(filename,frame_num,height,width,bit_depth):
     file_object = open(filename)
-    file_object.seek(frame_num*height*width*1.5)
-    y1 = fread(file_object,height*width,np.uint8)
-    u1 = fread(file_object,height*width//4,np.uint8)
-    v1 = fread(file_object,height*width//4,np.uint8)
+    if(bit_depth==8):
+        file_object.seek(frame_num*height*width*1.5)
+        y1 = fread(file_object,height*width,np.uint8)
+        u1 = fread(file_object,height*width//4,np.uint8)
+        v1 = fread(file_object,height*width//4,np.uint8)
+    elif(bit_depth==10 or bit_depth==12):
+        file_object.seek(frame_num*height*width*3)
+        y1 = fread(file_object,height*width,np.uint16)
+        u1 = fread(file_object,height*width//4,np.uint16)
+        v1 = fread(file_object,height*width//4,np.uint16)
     y = np.reshape(y1,(height,width))
     u = np.reshape(u1,(height//2,width//2)).repeat(2,axis=0).repeat(2,axis=1)
     v = np.reshape(v1,(height//2,width//2)).repeat(2,axis=0).repeat(2,axis=1)

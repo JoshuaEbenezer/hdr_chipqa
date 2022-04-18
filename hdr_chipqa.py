@@ -1,33 +1,25 @@
-import time
-import pandas as pd
-from utils.hdr_utils import hdr_yuv_read
-from utils.csf_utils import blockwise_csf,windows_csf
-from joblib import Parallel,delayed
+from utils.hdr_utils import yuv_read
+from utils import colour_utils
 import numpy as np
 import cv2
-import queue
-import glob
 import os
-import time
 import scipy.ndimage
 import joblib
-import sys
-import matplotlib.pyplot as plt
 import ChipQA.niqe 
 import ChipQA.save_stats
-from numba import jit,prange,njit
+from numba import jit
 import argparse
 
-os.nice(1)
 
-parser = argparse.ArgumentParser(description='Generate ChipQA features from a folder of videos and store them')
-parser.add_argument('--input_folder',help='Folder containing input videos')
-parser.add_argument('--results_folder',help='Folder where features are stored')
-parser.add_argument('--upscaled', dest='upscaled', action='store_true')
-parser.set_defaults(upscaled=False)
+parser = argparse.ArgumentParser(description='Generate HDR ChipQA features from a single video')
+parser.add_argument('--input_file',help='Input video file')
+parser.add_argument('--results_file',help='File where features are stored')
+parser.add_argument('--width', type=int)
+parser.add_argument('--height', type=int)
+parser.add_argument('--bit_depth', type=int,choices={8,10,12})
+parser.add_argument('--color_space',choices={'BT2020','BT709'})
 
 args = parser.parse_args()
-C=1
 def gen_gauss_window(lw, sigma):
     sd = np.float32(sigma)
     lw = int(lw)
@@ -43,28 +35,14 @@ def gen_gauss_window(lw, sigma):
     for ii in range(2 * lw + 1):
         weights[ii] /= sum
     return weights
-def compute_image_mscn_transform(image, C=1e-3, avg_window=None, extend_mode='constant'):
-    if avg_window is None:
-      avg_window = gen_gauss_window(3, 7.0/6.0)
-    assert len(np.shape(image)) == 2
-    h, w = np.shape(image)
-    mu_image = np.zeros((h, w), dtype=np.float32)
-    var_image = np.zeros((h, w), dtype=np.float32)
-    image = np.array(image).astype('float32')
-    scipy.ndimage.correlate1d(image, avg_window, 0, mu_image, mode=extend_mode)
-    scipy.ndimage.correlate1d(mu_image, avg_window, 1, mu_image, mode=extend_mode)
-    scipy.ndimage.correlate1d(image**2, avg_window, 0, var_image, mode=extend_mode)
-    scipy.ndimage.correlate1d(var_image, avg_window, 1, var_image, mode=extend_mode)
-    var_image = np.sqrt(np.abs(var_image - mu_image**2))
-    return (image - mu_image)/(var_image + C), var_image, mu_image
 
-def spatiotemporal_mscn(img_buffer,avg_window,extend_mode='mirror'):
+def spatiotemporal_mscn(img_buffer,avg_window,extend_mode='reflect'):
     st_mean = np.zeros((img_buffer.shape))
     scipy.ndimage.correlate1d(img_buffer, avg_window, 0, st_mean, mode=extend_mode)
     return st_mean
 
 @jit(nopython=True)
-def find_sts_locs(sts_slope,cy,cx,step,h,w):
+def find_sts_locs(sts_slope,cy,cx,step,h,width):
     if(np.abs(sts_slope)<1):
         x_sts = np.arange(cx-int((step-1)/2),cx+int((step-1)/2)+1)
         y = (cy-(x_sts-cx)*sts_slope).astype(np.int64)
@@ -73,7 +51,7 @@ def find_sts_locs(sts_slope,cy,cx,step,h,w):
         #        print(np.abs(sts_slope))
         y_sts = np.arange(cy-int((step-1)/2),cy+int((step-1)/2)+1)
         x= ((-y_sts+cy)/sts_slope+cx).astype(np.int64)
-        x_sts = np.asarray([x[j] if x[j]<w else w-1 for j in range(step)]) 
+        x_sts = np.asarray([x[j] if x[j]<width else width-1 for j in range(step)]) 
     return x_sts,y_sts
 
 
@@ -93,94 +71,33 @@ def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,h,step):
     idx = (np.abs(st_kurtosis - 3)).argmin()
     
     data_slice = data[idx,:]
-    return data_slice,st_kurtosis[idx]-3
+    return data_slice
 
 
-def find_kurtosis_sts(img_buffer,grad_img_buffer,step,cy,cx,rst,rct,theta):
+def find_kurtosis_sts(grad_img_buffer,step,cy,cx,rst,rct,theta):
 
-    h, w = img_buffer[step-1].shape[:2]
-    Y3d_mscn = np.reshape(img_buffer.copy(),(step,-1))
+    h = grad_img_buffer[step-1].shape[0]
     gradY3d_mscn = np.reshape(grad_img_buffer.copy(),(step,-1))
-    sts= [find_kurtosis_slice(Y3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
     sts_grad= [find_kurtosis_slice(gradY3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
 
-    st_data = [sts[i][0] for i in range(len(sts))]
-    st_deviation = [sts[i][1] for i in range(len(sts))]
-    st_grad_data = [sts_grad[i][0] for i in range(len(sts_grad))]
-    st_grad_dev = [sts_grad[i][1] for i in range(len(sts_grad))]
-    return st_data,np.asarray(st_deviation),st_grad_data,np.asarray(st_grad_dev)
-def Y_compute_gnl(Y,nl_method,nl_param):
-    Y = Y.astype(np.float32)
-    if(nl_method=='nakarushton'):
-        Y_transform =  Y/(Y+avg_luminance) #
-    elif(nl_method=='sigmoid'):
-        Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
-    elif(nl_method=='logit'):
-        delta = nl_param
-        Y_scaled = -0.99+1.98*(Y-np.amin(Y))/(1e-3+np.amax(Y)-np.amin(Y))
-        Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
-        if(delta%2==0):
-            Y_transform[Y<0] = -Y_transform[Y<0] 
-    elif(nl_method=='exp'):
-        delta = nl_param
-        Y = -4+(Y-np.amin(Y))* 8/(1e-3+np.amax(Y)-np.amin(Y))
-        Y_transform =  np.exp(np.abs(Y)**delta)-1
-        Y_transform[Y<0] = -Y_transform[Y<0]
-    elif(nl_method=='custom'):
-        Y = -0.99+(Y-np.amin(Y))* 1.98/(1e-3+np.amax(Y)-np.amin(Y))
-        Y_transform = transform(Y,5)
+    return sts_grad
 
+def Y_compute_lnl(Y):
+    if(len(Y.shape)==2):
+        Y = np.expand_dims(Y,axis=2)
 
-    return Y_transform
-
-def Y_compute_lnl(Y,nl_method,nl_param):
-    Y = Y.astype(np.float32)
-
-    if(nl_method=='logit'):
-        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
-        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = nl_param
-        Y_scaled = -0.99+1.98*(Y-minY)/(1e-3+maxY-minY)
-        Y_transform = np.log((1+(Y_scaled)**delta)/(1-(Y_scaled)**delta))
-        if(delta%2==0):
-            Y_transform[Y<0] = -Y_transform[Y<0] 
-    elif(nl_method=='exp'):
-        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
-        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        delta = nl_param
-        Y = -4+(Y-minY)* 8/(1e-3+maxY-minY)
-        Y_transform =  np.exp(np.abs(Y)**delta)-1
-        Y_transform[Y<0] = -Y_transform[Y<0]
-    elif(nl_method=='custom'):
-        maxY = scipy.ndimage.maximum_filter(Y,size=(31,31))
-        minY = scipy.ndimage.minimum_filter(Y,size=(31,31))
-        Y = -0.99+(Y-minY)* 1.98/(1e-3+maxY-minY)
-        Y_transform = transform(Y,5)
-    elif(nl_method=='sigmoid'):
-        avg_luminance = scipy.ndimage.gaussian_filter(Y,sigma=7.0/6.0)
-        Y_transform = 1/(1+(np.exp(-(1e-3*(Y-avg_luminance)))))
+    maxY = scipy.ndimage.maximum_filter(Y,size=(17,17,1))
+    minY = scipy.ndimage.minimum_filter(Y,size=(17,17,1))
+    Y_scaled = -1+(Y-minY)* 2/(1e-3+maxY-minY)
+    Y_transform =  np.exp(np.abs(Y_scaled)*4)-1
+    Y_transform[Y_scaled<0] = -Y_transform[Y_scaled<0]
     return Y_transform
 
 
-def blockshaped(arr, nrows, ncols):
+def unblockshaped(arr, h, width):
     """
-    Return an array of shape (n, nrows, ncols) where
-    n * nrows * ncols = arr.size
-
-    If arr is a 2D array, the returned array should look like n subblocks with
-    each subblock preserving the "physical" layout of arr.
-    """
-    h, w = arr.shape
-    assert h % nrows == 0, "{} rows is not evenly divisble by {}".format(h, nrows)
-    assert w % ncols == 0, "{} cols is not evenly divisble by {}".format(w, ncols)
-    return (arr.reshape(h//nrows, nrows, -1, ncols)
-               .swapaxes(1,2)
-               .reshape(-1, nrows, ncols))
-
-def unblockshaped(arr, h, w):
-    """
-    Return an array of shape (h, w) where
-    h * w = arr.size
+    Return an array of shape (h, width) where
+    h * width = arr.size
 
     If arr is of shape (n, nrows, ncols), n sublocks of shape (nrows, ncols),
     then the returned array preserves the "physical" layout of the sublocks.
@@ -188,21 +105,16 @@ def unblockshaped(arr, h, w):
     n, nrows, ncols = arr.shape
     return (arr.reshape(h//nrows, -1, nrows, ncols)
                .swapaxes(1,2)
-               .reshape(h, w))
+               .reshape(h, width))
 
 
 
-def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl_param, use_csf=True,use_gnl=True,use_lnl=True):
-    filename = filenames[i]
+def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,color_space):
     if(os.path.exists(filename)==False):
+        print("Input video file does not exist")
         return
-    name = os.path.basename(filename)
-    print(name) 
-    w = ws[i]
-    h = hs[i]
-    framenos = framenos_list[i]
-    filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     if(os.path.exists(filename_out)):
+        print("Output feature file already exists")
         return
     ## PARAMETERS for the model
     st_time_length = 5
@@ -212,9 +124,6 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     avg_window = t*(1-a*t)*np.exp(-2*a*t)
     avg_window = np.flip(avg_window)
 
-    # SIZE of windows
-    h_win,w_win = 45,45
-    xx, yy = np.mgrid[h_win//2:h-h_win//2:h_win, w_win//2:w-w_win//2:w_win].reshape(2,-1).astype(int)
 
 
     # LUT for coordinate search
@@ -229,131 +138,89 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
     rct = rct.astype(np.int32)
     rst = rst.astype(np.int32)
 
-    # SIZE of frames
-    print(h,w)
-    if(h>w):
-        h_temp = h
-        h=w
-        w = h_temp
     #percent by which the image is resized
     scale_percent = 0.5
     # dsize
-    dsize = (int(scale_percent*h),int(scale_percent*w))
+    dsize = (int(scale_percent*height),int(scale_percent*width))
 
-    # opening file object
-    dis_file_object = open(filename)
-    prevY_pq,_,_ = hdr_yuv_read(dis_file_object,0,h,w)
-    prevY_pq = prevY_pq.astype(np.float32)
 
 
     # ST chip centers and parameters
     step = st_time_length
-    cy, cx = np.mgrid[step:h-step*4:step*4, step:w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
+    cy, cx = np.mgrid[step:height-step*4:step*4, step:width-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
     dcy, dcx = np.mgrid[step:dsize[0]-step*4:step*4, step:dsize[1]-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
-    r1 = len(np.arange(step,h-step*4,step*4)) 
-    r2 = len(np.arange(step,w-step*4,step*4)) 
+    r1 = len(np.arange(step,height-step*4,step*4)) 
+    r2 = len(np.arange(step,width-step*4,step*4)) 
     dr1 = len(np.arange(step,dsize[0]-step*4,step*4)) 
     dr2 = len(np.arange(step,dsize[1]-step*4,step*4)) 
 
     
-    C = 1
-    prevY_pq_down = cv2.resize(prevY_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
-    if(use_gnl):
 
-        # gnl for the original frame
-        prevY_pq = Y_compute_gnl(prevY_pq,nl_method,nl_param)
-
-        # gnl for the downsized frame
-#        max_h_down,max_w_down = int((dsize[0]//h_win)*h_win),int((dsize[1]//w_win)*w_win)
-        prevY_pq_down =Y_compute_gnl(prevY_pq_down,nl_method,nl_param)
-
-#        # point centers
-#        cy, cx = np.mgrid[step:max_h-step*4:step*4, step:max_w-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
-#        dcy, dcx = np.mgrid[step:max_h_down-step*4:step*4, step:max_w_down-step*4:step*4].reshape(2,-1).astype(int) # these will be the centers of each block
-#        r1 = len(np.arange(step,max_h-step*4,step*4)) 
-#        r2 = len(np.arange(step,max_w-step*4,step*4)) 
-#        dr1 = len(np.arange(step,max_h_down-step*4,step*4)) 
-#        dr2 = len(np.arange(step,max_w_down-step*4,step*4)) 
-    elif(use_lnl):
-        prevY_pq = Y_compute_lnl(prevY_pq,nl_method,nl_param)
-        prevY_pq_down =Y_compute_lnl(prevY_pq_down,nl_method,nl_param)
-    elif(use_csf):
-        #apply CSF
-        prevY_pq = blockwise_csf(prevY_pq)
-        prevY_pq_down = blockwise_csf(prevY_pq_down)
-
-    print(prevY_pq.shape,prevY_pq_down.shape)
-    img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-    grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-    down_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
-    graddown_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
-
-
-    gradient_x = cv2.Sobel(prevY_pq,ddepth=-1,dx=1,dy=0)
-    gradient_y = cv2.Sobel(prevY_pq,ddepth=-1,dx=0,dy=1)
-    gradient_mag = np.sqrt(gradient_x**2+gradient_y**2)    
-
+    # declare buffers for ST Chips
+    grad_img_buffer = np.zeros((st_time_length,height,width))
+    graddown_img_buffer =np.zeros((st_time_length,int(height/2),int(width/2)))
     
-    gradient_x_down = cv2.Sobel(prevY_pq_down,ddepth=-1,dx=1,dy=0)
-    gradient_y_down = cv2.Sobel(prevY_pq_down,ddepth=-1,dx=0,dy=1)
-    gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
     i = 0
-
-    Y_mscn,_,_ = compute_image_mscn_transform(prevY_pq,C)
-    dY_mscn,_,_ = compute_image_mscn_transform(prevY_pq_down,C)
-    gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
-    dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
-
-    img_buffer[i,:,:] = Y_mscn
-    down_img_buffer[i,:,:]= dY_mscn
-    grad_img_buffer[i,:,:] =gradY_mscn 
-    graddown_img_buffer[i,:,:]=dgradY_mscn 
-    i = i+1
-
-    
-    head, tail = os.path.split(filename)
-
-
-    
-    spat_list = []
     X_list = []
     spatavg_list = []
     feat_sd_list =  []
     sd_list= []
     
-    j=0
-    total_time = 0
-    for framenum in range(1,framenos): 
-#        print(framenum)
-        # uncomment for FLOPS
-        #high.start_counters([events.PAPI_FP_OPS,])
+    for framenum in range(framenos): 
         
         try:
-            Y_pq,_,_ = hdr_yuv_read(dis_file_object,framenum,h,w)
-        except:
-            f = open("chipqa_yuv_reading_error.txt", "a")
-            f.write(filename+"\n")
-            f.close()
+            # Read YUV frame
+            Y_pq,U_pq,V_pq = yuv_read(filename,framenum,height,width,bit_depth)
+            YUV = np.stack((Y_pq,U_pq,V_pq),axis=2)
+            if(bit_depth==10):
+                YUV_norm = YUV.astype(np.float32)/1023.0
+                C = 4
+            elif(bit_depth==8):
+                YUV_norm = YUV.astype(np.float32)/255.0
+                C = 1
+            elif(bit_depth==12):
+                YUV_norm = YUV.astype(np.float32)/4095.0
+                C = 16
+            # downsample YUV
+            YUV_down_norm = cv2.resize(YUV_norm,(dsize[1],dsize[0]),interpolation=cv2.INTER_LANCZOS4)
+        except Exception as e:
+            print(e)
             break
-        
-        
-        Y_pq = Y_pq.astype(np.float32)
-        Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_CUBIC)
-        
-        
-        if(use_gnl):
-            Y_pq = Y_compute_gnl(Y_pq,nl_method,nl_param)
-            Y_down_pq = Y_compute_gnl(Y_down_pq,nl_method,nl_param)
-            C = 1e-3
-        elif(use_lnl):
-            Y_pq = Y_compute_lnl(Y_pq,nl_method,nl_param)
-            Y_down_pq =Y_compute_lnl(Y_down_pq,nl_method,nl_param)
-            C = 1e-3
-        elif(use_csf):
-            #apply CSF
-            Y_pq = blockwise_csf(Y_pq)
-            Y_down_pq = blockwise_csf(Y_down_pq)
 
+            
+        # convert YUV to RGB
+        if(color_space=='BT2020'):
+            rgb = colour_utils.YCbCr_to_RGB(YUV_norm,K = [0.2627,0.0593])
+            rgb_down = colour_utils.YCbCr_to_RGB(YUV_down_norm,K = [0.2627,0.0593])
+        elif(color_space=='BT709'):
+            rgb = colour_utils.YCbCr_to_RGB(YUV_norm,K = [0.2126,0.0722])
+            rgb_down = colour_utils.YCbCr_to_RGB(YUV_down_norm,K = [0.2126,0.0722])
+            
+        
+        
+        # NSS features for Y
+        Y_pq = Y_pq.astype(np.float32)
+        Y_down_pq = cv2.resize(Y_pq,(dsize[1],dsize[0]),interpolation=cv2.INTER_LANCZOS4)
+        Y_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(Y_pq,C)
+        dY_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(Y_down_pq,C)
+        
+        brisque_fullscale = ChipQA.save_stats.extract_subband_feats(Y_mscn)
+        brisque_halfscale = ChipQA.save_stats.extract_subband_feats(dY_mscn)
+        brisque = np.concatenate((brisque_fullscale,brisque_halfscale),axis=0)
+        
+        
+        # NSS features for nonlinear transformed Y
+        Y_pq_nl = np.squeeze(Y_compute_lnl(Y_pq))
+        Y_down_pq_nl = np.squeeze(Y_compute_lnl(Y_down_pq))
+        Y_mscn_pq_nl,_,_ = ChipQA.save_stats.compute_image_mscn_transform(Y_pq_nl,C=0.001)
+        dY_mscn_pq_nl,_,_ = ChipQA.save_stats.compute_image_mscn_transform(Y_down_pq_nl,C=0.001)
+
+        brisque_nl_fullscale = ChipQA.save_stats.extract_subband_feats(Y_mscn_pq_nl)
+        brisque_nl_halfscale = ChipQA.save_stats.extract_subband_feats(dY_mscn_pq_nl)
+        brisque_nl = np.concatenate((brisque_nl_fullscale,brisque_nl_halfscale),axis=0)
+
+
+        # compute gradient magnitude
         gradient_x = cv2.Sobel(Y_pq,ddepth=-1,dx=1,dy=0)
         gradient_y = cv2.Sobel(Y_pq,ddepth=-1,dx=0,dy=1)
         gradient_mag = np.sqrt(gradient_x**2+gradient_y**2)    
@@ -364,122 +231,99 @@ def sts_fromfilename(i,filenames,framenos_list,results_folder,ws,hs,nl_method,nl
         gradient_mag_down = np.sqrt(gradient_x_down**2+gradient_y_down**2)    
 
 
-        Y_mscn,Ysigma,_ = compute_image_mscn_transform(Y_pq,C)
-        dY_mscn,dYsigma,_ = compute_image_mscn_transform(Y_down_pq,C)
-
-        gradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag,C)
-        dgradY_mscn,_,_ = compute_image_mscn_transform(gradient_mag_down,C)
-
-        gradient_feats = ChipQA.save_stats.extract_secondord_feats(gradY_mscn)
-        gdown_feats = ChipQA.save_stats.extract_secondord_feats(dgradY_mscn)
-        gfeats = np.concatenate((gradient_feats,gdown_feats),axis=0)
-
+        gradY_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag,C)
+        dgradY_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(gradient_mag_down,C)
         
-        Ysigma_mscn,_,_= compute_image_mscn_transform(Ysigma,C)
-        dYsigma_mscn,_,_= compute_image_mscn_transform(dYsigma,C)
+        # store gradient mscns in buffer
+        grad_img_buffer[i,:,:] =gradY_mscn 
+        graddown_img_buffer[i,:,:]=dgradY_mscn 
+        i=i+1
 
-        sigma_feats = ChipQA.save_stats.stat_feats(Ysigma_mscn)
-        dsigma_feats = ChipQA.save_stats.stat_feats(dYsigma_mscn)
+        # compute nonlinearity for RGB
+        rgb_nl = Y_compute_lnl(rgb)
+        rgb_nl_down = Y_compute_lnl(rgb_down)
+        rgb_features = np.zeros((3,36))
+        rgb_features_nl = np.zeros((3,36))
 
+        # compute NSS features for RGB
+        for chroma_index in range(3):
+            rgb_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(rgb[:,:,chroma_index],C=0.001)
+            rgb_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(rgb_down[:,:,chroma_index],C=0.001)
+            rgb_fullscale = ChipQA.save_stats.extract_subband_feats(rgb_mscn)
+            rgb_halfscale = ChipQA.save_stats.extract_subband_feats(rgb_mscn_down)
+            rgb_features[chroma_index,:] = np.concatenate((rgb_fullscale,rgb_halfscale),axis=0) 
 
-        feats = np.concatenate((gfeats,sigma_feats,dsigma_feats),axis=0)
+            rgb_nl_mscn,_,_ = ChipQA.save_stats.compute_image_mscn_transform(rgb_nl[:,:,chroma_index],C=0.001)
+            rgb_nl_mscn_down,_,_ = ChipQA.save_stats.compute_image_mscn_transform(rgb_nl_down[:,:,chroma_index],C=0.001)
+            rgb_fullscale_nl = ChipQA.save_stats.extract_subband_feats(rgb_nl_mscn)
+            rgb_halfscale_nl = ChipQA.save_stats.extract_subband_feats(rgb_nl_mscn_down)
+            rgb_features_nl[chroma_index,:] = np.concatenate((rgb_fullscale_nl,rgb_halfscale_nl),axis=0) 
+
+        feats = np.concatenate((brisque,brisque_nl,rgb_features.flatten(),rgb_features_nl.flatten()),0)
 
         feat_sd_list.append(feats)
         spatavg_list.append(feats)
 
         
-        img_buffer[i,:,:] = Y_mscn
-        down_img_buffer[i,:,:]= dY_mscn
-        grad_img_buffer[i,:,:] =gradY_mscn 
-        graddown_img_buffer[i,:,:]=dgradY_mscn 
-        i=i+1
 
 
+        # compute ST Gradient chips and rolling standard deviation
         if (i>=st_time_length): 
 
-            Y3d_mscn = spatiotemporal_mscn(img_buffer,avg_window)
-            Ydown_3d_mscn = spatiotemporal_mscn(down_img_buffer,avg_window)
+            # temporal filtering
             grad3d_mscn = spatiotemporal_mscn(grad_img_buffer,avg_window)
             graddown3d_mscn = spatiotemporal_mscn(graddown_img_buffer,avg_window)
-            spat_feats = ChipQA.niqe.compute_niqe_features(Y_pq,C=C)
 
+            # compute rolling standard deviation 
             sd_feats = np.std(feat_sd_list,axis=0)
             sd_list.append(sd_feats)
             feat_sd_list = []
 
-            sts,st_deviation,sts_grad,sts_grad_deviation = find_kurtosis_sts(Y3d_mscn,grad3d_mscn,step,cy,cx,rst,rct,theta)
-            dsts,dsts_deviation,dsts_grad,dsts_grad_deviation = find_kurtosis_sts(Ydown_3d_mscn,graddown3d_mscn,step,dcy,dcx,rst,rct,theta)
-            sts_arr = np.reshape(sts,(r1*st_time_length,r2*st_time_length)) 
-            sts_grad = np.reshape(sts_grad,(r1*st_time_length,r2*st_time_length))
-            dsts_arr = np.reshape(dsts,(dr1*st_time_length,dr2*st_time_length)) #(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
-            dsts_grad = np.reshape(dsts_grad,(dr1*st_time_length,dr2*st_time_length))#(int((int(dsize[0]/20)*20-step*4)/4),int((int(dsize[1]/20)*20-step*4)/4)))
-            feats =  ChipQA.save_stats.brisque(sts_arr)
-            grad_feats = ChipQA.save_stats.brisque(sts_grad)
-            
-            dfeats =  ChipQA.save_stats.brisque(dsts_arr)
-            dgrad_feats = ChipQA.save_stats.brisque(dsts_grad)
+            # ST chips
+            sts_grad = find_kurtosis_sts(grad3d_mscn,step,cy,cx,rst,rct,theta)
+            dsts_grad = find_kurtosis_sts(graddown3d_mscn,step,dcy,dcx,rst,rct,theta)
+            sts_grad= unblockshaped(np.reshape(sts_grad,(-1,st_time_length,st_time_length)),r1*st_time_length,r2*st_time_length)
+            dsts_grad= unblockshaped(np.reshape(dsts_grad,(-1,st_time_length,st_time_length)),dr1*st_time_length,dr2*st_time_length)
+            grad_feats = ChipQA.save_stats.extract_subband_feats(sts_grad)
+            dgrad_feats = ChipQA.save_stats.extract_subband_feats(dsts_grad)
 
 
-            allst_feats = np.concatenate((spat_feats,feats,dfeats,grad_feats,dgrad_feats),axis=0)
+            allst_feats = np.concatenate((grad_feats,dgrad_feats),axis=0)
             X_list.append(allst_feats)
 
 
-            img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-            grad_img_buffer = np.zeros((st_time_length,prevY_pq.shape[0],prevY_pq.shape[1]))
-            down_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
-            graddown_img_buffer =np.zeros((st_time_length,prevY_pq_down.shape[0],prevY_pq_down.shape[1]))
+            # refresh buffer
+            grad_img_buffer = np.zeros((st_time_length,height,width))
+            graddown_img_buffer =np.zeros((st_time_length,int(height/2),int(width/2)))
             i=0
-#            x=high.stop_counters()
-#        print(x,"is the number of flops")
 
+    # average features and save to file
     X1 = np.average(spatavg_list,axis=0)
     X2 = np.average(sd_list,axis=0)
     X3 = np.average(X_list,axis=0)
     X = np.concatenate((X1,X2,X3),axis=0)
     train_dict = {"features":X}
-    filename_out =os.path.join(results_folder,os.path.splitext(name)[0]+'.z')
     joblib.dump(train_dict,filename_out)
     return
 
 
-def sts_fromvid(args):
-    csv_file = './fall2021_yuv_rw_info.csv'
-    csv_df = pd.read_csv(csv_file)
-    if(args.upscaled):
-        files = [os.path.join(args.input_folder,f[:-4]+'_upscaled.yuv') for f in csv_df["yuv"]]
-        ws = [3840]*len(csv_df)
-        hs = [2160]*len(csv_df)
-    else:
-        files = [os.path.join(args.input_folder,f) for f in csv_df["yuv"]]
-        ws =csv_df["w"]
-        hs = csv_df["h"]
-    fps = csv_df["fps"]
-    framenos_list = csv_df["framenos"]
-    flag = 0
-    
-    for delta in [1]:
-        outfolder = './features/chipqa_global_logit1'#+str(delta)
-        if(os.path.exists(outfolder)==False):
-            os.mkdir(outfolder)
-        Parallel(n_jobs=80)(delayed(sts_fromfilename)\
-                (i,files,framenos_list,outfolder,ws,hs,nl_method='logit',nl_param=delta, use_csf=False,use_gnl=True,use_lnl=False)\
-                for i in range(len(files)))
-#    for i in range(len(files)):
-#        sts_fromfilename(i,files,framenos_list,args.results_folder,ws,hs,nl_method='nakarushton',use_csf=False,use_lnl=False)
-             
-
-
-
-    return
 
 
 def main():
     args = parser.parse_args()
-    sts_fromvid(args)
+    vid_stream = open(args.input_file,'r')
+    vid_stream.seek(0, os.SEEK_END)
+    vid_filesize = vid_stream.tell()
+
+    if(args.bit_depth==10 or args.bit_depth==12):
+        multiplier = 3
+    elif(args.bit_depth==8):
+        multiplier=1.5
+    vid_T = int(vid_filesize/(args.height*args.width*multiplier))
+    hdrchipqa_fromvid(args.input_file,args.results_file,args.width,args.height,vid_T,args.bit_depth,args.color_space)
 
 
 if __name__ == '__main__':
-    # print(__doc__)
     main()
     
 

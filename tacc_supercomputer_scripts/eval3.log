@@ -1,0 +1,46 @@
+/tmp/slurmd/job168295/slurm_script: line 10: env/bin/activate: No such file or directory
+/tmp/slurmd/job168295/slurm_script: line 12: conda: command not found
+TACC:  Starting up job 168295 
+TACC:  Starting parallel tasks... 
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+Traceback (most recent call last):
+  File "/work/08176/jebeneze/ls6/code/production_hdr_chipqa/tacc_supercomputer_scripts/tacc_obtain.py", line 2, in <module>
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+    from joblib import load
+ModuleNotFoundError: No module named 'joblib'
+TACC:  MPI job exited with code: 1 
+TACC:  Shutdown complete. Exiting. 

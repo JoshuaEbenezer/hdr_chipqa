@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "HDR ChipQA",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--input_file=/media/lab-admin/nebula_josh/hdr/fall2021_hdr_upscaled_yuv/1080p_9M_football10_upscaled.yuv",
+            "--results_file=1080p_9M_football10_upscaled_results.z","--width=3840","--height=2160","--bit_depth=10","--color_space=BT2020"]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

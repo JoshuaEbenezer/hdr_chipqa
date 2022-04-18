@@ -1,8 +1,0 @@
-# Ignore pycache
-__pycache__/
-
-# Ignore temp directory
-temp/
-
-# Ignore swap files
-.*.swp

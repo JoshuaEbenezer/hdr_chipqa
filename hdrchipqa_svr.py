@@ -1,29 +1,29 @@
 import numpy as np                                                                                                                                                                                                          
 from scipy.stats import pearsonr,spearmanr
-from sklearn.model_selection import PredefinedSplit,KFold
-import glob
 import os
-from matplotlib import pyplot as plt 
 import pandas as pd
-import math
-import scipy
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn import svm
-from sklearn import preprocessing
 from joblib import dump, load
-from scipy.stats.mstats import gmean
 
-from sklearn import preprocessing
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler,MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from joblib import load,Parallel,delayed
 from sklearn.svm import SVR
 from scipy.io import savemat
 from scipy.stats import spearmanr,pearsonr
 from scipy.optimize import curve_fit
-import glob
+import argparse
 
+parser = argparse.ArgumentParser(description='Run a content-separated SVR model')
+parser.add_argument('--score_file',help='File with video names and scores')
+parser.add_argument('--feature_folder',help='Folder containing features')
+parser.add_argument('--only_train',action='store_true',help='only train')
+parser.add_argument('--only_test',action='store_true',help='only test')
+parser.add_argument('--train_and_test',action='store_true',help='train and test')
+
+args = parser.parse_args()
 
 def results(all_preds,all_dmos):
     all_preds = np.asarray(all_preds)
@@ -39,22 +39,14 @@ def results(all_preds,all_dmos):
     preds_srocc = spearmanr(preds_fitted,all_dmos)
     preds_lcc = pearsonr(preds_fitted,all_dmos)
     preds_rmse = np.sqrt(np.mean((preds_fitted-all_dmos)**2))
-#    print('SROCC:')
-#    print(preds_srocc[0])
-#    print('LCC:')
-#    print(preds_lcc[0])
-#    print('RMSE:')
-#    print(preds_rmse)
-#    print(len(all_preds),' videos were read')
     return preds_srocc[0],preds_lcc[0],preds_rmse
 
 
 
-scores_df = pd.read_csv('/home/lab-admin/code/fall21_score_analysis/sureal_dark_mos_and_dmos.csv')
+scores_df = pd.read_csv(args.score_file)
 video_names = scores_df['video']
 scores = scores_df['dark_mos']
 scores_df['content'] = [v.split('_')[2] for v in scores_df['video']]
-print(len(scores_df['content'].unique()))
 srocc_list = []
 
 def trainval_split(trainval_content,r):
@@ -65,53 +57,17 @@ def trainval_split(trainval_content,r):
     train_scores = []
     val_scores = []
 
-    feature_folder= './features/local_W_experiments/W17_without1023div/'
-    feature_folder2='./features/chroma_ggd_feats'#  '../hdr_colorbleed/features/lab_chroma_nl'
-    feature_folder3= './features/fall21_hdr_full_hdrchipqa'
-    feature_folder4= '../hdr_colorbleed/features/rgb'
-    feature_folder5 = '../hdr_colorbleed/features/rgb_nl'
-    feature_folder6 = '../hdr_brisque/features/asymmetric_yrgb_nl/2_2'
+    feature_folder= args.feature_folder
 
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
-#        if("Jockey" in vid or "Football" in vid):
-#            continue
-#        else:
-#        featfile_name = vid +'.z'
         featfile_name = vid+'_upscaled.z'
-        try:
-            feat_file = load(os.path.join(feature_folder,featfile_name))
-        except:
-            continue
-        feat_file2 = load(os.path.join(feature_folder2,featfile_name))
-        feat_file3 = load(os.path.join(feature_folder3,featfile_name))
-        feat_file4 = load(os.path.join(feature_folder4,featfile_name))
-        feat_file5 = load(os.path.join(feature_folder5,featfile_name))
-        feat_file6 = load(os.path.join(feature_folder6,featfile_name))
+        feat_file = load(os.path.join(feature_folder,featfile_name))
             
-        feature1 = np.asarray(feat_file['features'],dtype=np.float32)
-        feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
-        feature3 = np.asarray(feat_file3['features'],dtype=np.float32)
-        feature4 = np.asarray(feat_file4['features'],dtype=np.float32)
-        feature5 = np.asarray(feat_file5['features'],dtype=np.float32)
-        feature6 = np.asarray(feat_file6['features'],dtype=np.float32)
+        feature = np.asarray(feat_file['features'],dtype=np.float32)
 
-#        print(feature5.shape)
-#        feature = np.concatenate((feature1,feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84],feature4[0:2],\
-#                feature4[18:20],feature4[36:38],feature4[54:56],feature5[0:8]),axis=0)
-#        feature = np.concatenate((feature1,feature3[0:36],feature3[84:120],feature3[168:],feature4,feature5),axis=0)
-        feature = np.concatenate((feature1,feature3[0:36],feature3[84:120],feature3[168:],feature4,feature5),axis=0)
-
-                
-#        feature = np.concatenate((feature1[36:72],feature3[0:36],feature3[168:],feature2[0:4],feature3[76:84]),axis=0)
-#        feature = feature1[0:36] #[72:76]
-#        print(feature)
-#        print(feature.shape)
-#        feature = feature3[0:36]
         feature = np.nan_to_num(feature)
-#        if(np.isnan(feature).any()):
-#            print(vid)
         score = scores[i]
         if(scores_df.loc[i]['content'] in train):
             train_features.append(feature)
@@ -123,18 +79,12 @@ def trainval_split(trainval_content,r):
             val_features.append(feature)
             val_scores.append(score)
             val_names.append(scores_df.loc[i]['video'])
-#    print('Train set')
-#    print(len(train_names))
-#    print('Validation set')
-#    print(len(val_names))
     return np.asarray(train_features),train_scores,np.asarray(val_features),val_scores,train,val_names
 
 def single_split(trainval_content,cv_index,C):
 
     train_features,train_scores,val_features,val_scores,_,_ = trainval_split(trainval_content,cv_index)
     clf = svm.SVR(kernel='linear',C=C)
-#    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
-#    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
     scaler = StandardScaler()
     X_train = scaler.fit_transform(train_features)
     X_test = scaler.transform(val_features)
@@ -154,7 +104,6 @@ def grid_search(C_list,trainval_content):
 def train_test(r):
     train_features,train_scores,test_features,test_scores,trainval_content,test_names = trainval_split(scores_df['content'].unique(),r)
     best_C= grid_search(C_list=np.logspace(-7,2,10,base=2),trainval_content=trainval_content)
-#    scaler = MinMaxScaler(feature_range=(-1,1))  
     scaler = StandardScaler()
     scaler.fit(train_features)
     X_train = scaler.transform(train_features)
@@ -165,10 +114,9 @@ def train_test(r):
     srocc,lcc,rmse = results(preds,test_scores)
     return srocc,lcc,rmse
 def only_train(r):
-    train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
+    train_features,train_scores,test_features,test_scores,trainval_content,test_names = trainval_split(scores_df['content'].unique(),r)
     all_features = np.concatenate((np.asarray(train_features),np.asarray(test_features)),axis=0) 
     all_scores = np.concatenate((train_scores,test_scores),axis=0) 
-#    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
     scaler = StandardScaler()
     X_train = scaler.fit_transform(all_features)
     grid_svr = GridSearchCV(svm.SVR(kernel='linear'),param_grid = {"C":np.logspace(-7,2,10,base=2)},cv=5)
@@ -176,66 +124,39 @@ def only_train(r):
     preds = grid_svr.predict(X_train)
     srocc_test = spearmanr(preds,all_scores)
     print(srocc_test)
-    dump(grid_svr,"./stgreed_lbmfr_fitted_scaler.z")
-    dump(scaler,"./stgreed_lbmfr_trained_svr.z")
+    dump(scaler,"./hdrchipqa_livehdr_fitted_scaler.z")
+    dump(grid_svr,"./hdrchipqa_livehdr_trained_svr.z")
     return
 
 def only_test(r):
-    outfolder = './chipqa_etri_preds_from_apv'
-    train_features,train_scores,test_features,test_scores,trainval_content = trainval_split(scores_df['content'].unique(),r)
+    train_features,train_scores,test_features,test_scores,trainval_content,test_names = trainval_split(scores_df['content'].unique(),r)
     all_features = np.concatenate((np.asarray(train_features),np.asarray(test_features)),axis=0) 
     all_scores = np.concatenate((train_scores,test_scores),axis=0) 
-#    scaler = preprocessing.MinMaxScaler(feature_range=(-1,1))
     scaler = StandardScaler()
-    scaler = load('/home/ubuntu/ChipQA_files/zfiles/vbliinds_on_apv_scaler.z')
+    scaler = load('hdrchipqa_livehdr_fitted_scaler.z')
     X_train = scaler.fit_transform(all_features)
-    grid_svr = load('/home/ubuntu/ChipQA_files/zfiles/vbliinds_on_apv_svr.z')
+    grid_svr = load('hdrchipqa_livehdr_trained_svr.z')
     preds = grid_svr.predict(X_train)
     srocc_test = spearmanr(preds,all_scores)
     print(srocc_test)
-    predfname = 'preds_'+str(r)+'.mat'
-    out = {'pred':preds,'y':test_scores}
-    savemat(os.path.join(outfolder,predfname),out)
-    srocc_val = np.nan_to_num(srocc_test[0])
-    print(srocc_val)
     return
-#    best_C,best_gamma = grid_search(np.logspace(-7,2,10),np.logspace(1,10,10,base=2),trainval_content)
-#
-#    scaler = StandardScaler()
-#    scaler.fit(train_features)
-#    X_train = scaler.transform(train_features)
-#    X_test = test_features #scaler.transform(test_features)
-#    best_svr =SVR(gamma=best_gamma,C=best_C) 
-#    best_svr.fit(X_train,train_scores)
-#    preds = X_test #best_svr.predict(X_test)
-#    srocc_test = spearmanr(preds,test_scores)
-#    predfname = 'preds_'+str(r)+'.mat'
-#    out = {'pred':preds,'y':test_scores}
-#    savemat(os.path.join(outfolder,predfname),out)
-#    srocc_val = np.nan_to_num(srocc_test[0])
-#    print(srocc_val)
-    return #srocc_val
 
-#only_train(0)
-#only_test(0)
-#srocc_list = train_test(0) 
-#print(srocc_list)
-srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(100))
-##srocc_list = np.nan_to_num(srocc_list)
-print("median srocc is")
-med_srcc = np.median([s[0] for s in srocc_list])
-print(med_srcc)
-print("median lcc is")
-med_lcc = np.median([s[1] for s in srocc_list])
-print(med_lcc)
-print("median rmse is")
-med_rmse = np.median([s[2] for s in srocc_list])
-print(med_rmse)
-print("std of srocc is")
-print(np.std([s[0] for s in srocc_list]))
-print("std of lcc is")
-print(np.std([s[1] for s in srocc_list]))
-print("std of rmse is")
-print(np.std([s[2] for s in srocc_list]))
-print(med_srcc, med_lcc, med_rmse)
-##
+
+if(args.only_train):
+    only_train(0)
+elif(args.only_test):
+    only_test(0)
+elif(args.train_and_test):
+    srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i) for i in range(100))
+    print("median srocc is")
+    print(np.median([s[0] for s in srocc_list]))
+    print("median lcc is")
+    print(np.median([s[1] for s in srocc_list]))
+    print("median rmse is")
+    print(np.median([s[2] for s in srocc_list]))
+    print("std of srocc is")
+    print(np.std([s[0] for s in srocc_list]))
+    print("std of lcc is")
+    print(np.std([s[1] for s in srocc_list]))
+    print("std of rmse is")
+    print(np.std([s[2] for s in srocc_list]))
