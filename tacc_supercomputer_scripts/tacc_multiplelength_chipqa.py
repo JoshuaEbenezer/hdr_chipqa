@@ -9,6 +9,7 @@ import ChipQA.niqe
 import ChipQA.save_stats
 from numba import jit
 import argparse
+import matplotlib.pyplot as plt
 
 
 parser = argparse.ArgumentParser(description='Generate HDR ChipQA features from a single video')
@@ -18,8 +19,14 @@ parser.add_argument('--width', type=int)
 parser.add_argument('--height', type=int)
 parser.add_argument('--bit_depth', type=int,choices={8,10,12})
 parser.add_argument('--color_space',choices={'BT2020','BT709'})
+parser.add_argument('--time_length',type=int,choices={5,10,20,30})
+parser.add_argument('--step',type=int,choices={5,10,20,30})
 
 args = parser.parse_args()
+
+
+
+
 def gen_gauss_window(lw, sigma):
     sd = np.float32(sigma)
     lw = int(lw)
@@ -56,21 +63,20 @@ def find_sts_locs(sts_slope,cy,cx,step,h,width):
 
 
 #@jit(nopython=True)
-def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,w,time_search_step):
+def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,w):
     st_kurtosis = np.zeros((len(theta),))
     min_kurtosis = 100
-    for time_length in [5,10,20,30]:
-        for index,t in enumerate(theta):
-            rsin_theta = rst[:,index]
-            rcos_theta  =rct[:,index]
-            x_sts,y_sts = cx+rcos_theta,cy+rsin_theta
-            
-            data=Y3d_mscn[0:time_length,y_sts*w+x_sts].flatten() 
-            data_mu4 = np.mean((data-np.mean(data))**4)
-            data_var = np.var(data)
-            st_kurtosis = data_mu4/(data_var**2+1e-4)
-            if(st_kurtosis<min_kurtosis):
-                best_block = np.reshape(data,(5,time_length))
+    for index,t in enumerate(theta):
+        rsin_theta = rst[:,index]
+        rcos_theta  =rct[:,index]
+        x_sts,y_sts = cx+rcos_theta,cy+rsin_theta
+        
+        data=Y3d_mscn[:,y_sts*w+x_sts].flatten() 
+        data_mu4 = np.mean((data-np.mean(data))**4)
+        data_var = np.var(data)
+        st_kurtosis = data_mu4/(data_var**2+1e-4)
+        if(st_kurtosis<min_kurtosis):
+            best_block = Y3d_mscn[:,y_sts*w+x_sts]
     
     return best_block 
 
@@ -80,7 +86,7 @@ def find_kurtosis_sts(grad_img_buffer,cy,cx,rst,rct,theta):
     w = grad_img_buffer.shape[2]
     gradY3d_mscn = np.reshape(grad_img_buffer.copy(),(grad_img_buffer.shape[0],-1))
     sts_grad= [find_kurtosis_slice(gradY3d_mscn,\
-        cy[i],cx[i],rst,rct,theta,w,5) for i in range(len(cy))]
+        cy[i],cx[i],rst,rct,theta,w) for i in range(len(cy))]
 
     return sts_grad
 
@@ -111,7 +117,7 @@ def unblockshaped(arr, h, width):
 
 
 
-def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,color_space):
+def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,color_space,time_length,step):
     if(os.path.exists(filename)==False):
         print("Input video file does not exist")
         return
@@ -119,17 +125,16 @@ def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,colo
         print("Output feature file already exists")
         return
     ## PARAMETERS for the model
-    st_time_length = 30
-    t = np.arange(0,st_time_length)
-    a=0.04
+
+
+    lgn_param_dict = {'5':0.5,'10':0.25,'20':0.15,'30':0.1}
+    t = np.arange(0,time_length)
+    a= lgn_param_dict[str(time_length)]
     # temporal filter
     avg_window = t*(1-a*t)*np.exp(-2*a*t)
     avg_window = np.flip(avg_window)
 
-
-
     # LUT for coordinate search
-    step = 5
     theta = np.arange(0,np.pi,np.pi/6)
     ct = np.cos(theta)
     st = np.sin(theta)
@@ -141,7 +146,8 @@ def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,colo
     rct = rct.astype(np.int32)
     rst = rst.astype(np.int32)
 
-    global_scaling_factor = 0.25
+    global_scaling_factor_dict = {'5':0.25,'10':np.sqrt(0.5*0.25),'20':np.sqrt(0.25*0.25),'30':np.sqrt(1/6.0*0.25)}
+    global_scaling_factor = global_scaling_factor_dict[str(time_length)]
     #percent by which the image is resized
     scale_percent = 0.5
     # dsize
@@ -153,16 +159,12 @@ def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,colo
     # ST chip centers and parameters
     cy, cx = np.mgrid[step:full_size[0]:step, step:full_size[1]:step].reshape(2,-1).astype(int) # these will be the centers of each block
     dcy, dcx = np.mgrid[step:dsize[0]:step, step:dsize[1]:step].reshape(2,-1).astype(int) # these will be the centers of each block
-    r1 = len(np.arange(step,full_size[0],step)) 
-    r2 = len(np.arange(step,full_size[1],step)) 
-    dr1 = len(np.arange(step,dsize[0]-step)) 
-    dr2 = len(np.arange(step,dsize[1]-step)) 
 
     
 
     # declare buffers for ST Chips
-    grad_img_buffer = np.zeros((st_time_length,full_size[0],full_size[1]))
-    graddown_img_buffer =np.zeros((st_time_length,dsize[0],dsize[1]))
+    grad_img_buffer = np.zeros((time_length,full_size[0],full_size[1]))
+    graddown_img_buffer =np.zeros((time_length,dsize[0],dsize[1]))
     
     i = 0
     X_list = []
@@ -275,7 +277,7 @@ def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,colo
 
 
         # compute ST Gradient chips and rolling standard deviation
-        if (i>=st_time_length): 
+        if (i>=time_length): 
 
             # temporal filtering
             grad3d_mscn = spatiotemporal_mscn(grad_img_buffer,avg_window)
@@ -304,8 +306,8 @@ def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,colo
 
 
             # refresh buffer
-            grad_img_buffer = np.zeros((st_time_length,full_size[0],full_size[1]))
-            graddown_img_buffer =np.zeros((st_time_length,dsize[0],dsize[1]))
+            grad_img_buffer = np.zeros((time_length,full_size[0],full_size[1]))
+            graddown_img_buffer =np.zeros((time_length,dsize[0],dsize[1]))
             i=0
 
     # average features and save to file
@@ -331,7 +333,8 @@ def main():
     elif(args.bit_depth==8):
         multiplier=1.5
     vid_T = int(vid_filesize/(args.height*args.width*multiplier))
-    hdrchipqa_fromvid(args.input_file,args.results_file,args.width,args.height,vid_T,args.bit_depth,args.color_space)
+    hdrchipqa_fromvid(args.input_file,args.results_file,args.width,args.height,vid_T,args.bit_depth,\
+        args.color_space,args.time_length,args.step)
 
 
 if __name__ == '__main__':

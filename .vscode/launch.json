@@ -5,14 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "HDR ChipQA",
+            "name": "HDR ChipQA ETRI",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--input_file=/media/lab-admin/nebula_josh/hdr/fall2021_hdr_upscaled_yuv/1080p_9M_football10_upscaled.yuv",
-            "--results_file=1080p_9M_football10_upscaled_results.z","--width=3840","--height=2160","--bit_depth=10","--color_space=BT2020"]
+            "args": ["--input_file=/media/lab-admin/nebula_livelab/ETRI_LIVE_Database/dist_vids/Monkeys_2160p_60hz_q_35.yuv",
+            "--results_file=test.z","--width=3840","--height=2160","--bit_depth=10","--color_space=BT709","--time_length=30","--step=5"]
         },
         {
             "name": "Python: Current File",

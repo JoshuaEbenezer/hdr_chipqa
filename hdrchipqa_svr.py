@@ -45,8 +45,7 @@ def results(all_preds,all_dmos):
 
 scores_df = pd.read_csv(args.score_file)
 video_names = scores_df['video']
-scores = scores_df['dark_mos']
-scores_df['content'] = [v.split('_')[2] for v in scores_df['video']]
+scores = scores_df['mos']
 srocc_list = []
 
 def trainval_split(trainval_content,r):
@@ -62,7 +61,7 @@ def trainval_split(trainval_content,r):
     train_names = []
     val_names = [] 
     for i,vid in enumerate(video_names):
-        featfile_name = vid+'_upscaled.z'
+        featfile_name = vid+'.z'
         feat_file = load(os.path.join(feature_folder,featfile_name))
             
         feature = np.asarray(feat_file['features'],dtype=np.float32)

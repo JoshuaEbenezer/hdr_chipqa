@@ -28,7 +28,7 @@ for i in range(len(files)):
     name = os.path.basename(vname)
     os.makedirs(results_folder,exist_ok=True)
     results_file = os.path.join(results_folder,os.path.splitext(os.path.basename(vname))[0]+'.z')
-    cmd = "python3 tacc_hdrchipqa.py --input_file {vname} --results_file {results_file} --bit_depth 10 --color_space BT2020 --width 3840 --height 2160".format(vname=vname,results_file=results_file)
+    cmd = "python3 hdr_chipqa.py --input_file {vname} --results_file {results_file} --bit_depth 10 --color_space BT709 --width 3840 --height 2160".format(vname=vname,results_file=results_file)
     cmd_list.append(cmd)
 
 def call_cmd(cmd):
@@ -36,6 +36,7 @@ def call_cmd(cmd):
 
 
 
-for cmd in cmd_list:
-    call_cmd(cmd)
-#Parallel(n_jobs=20)(delayed(call_cmd)(cmd) for cmd in cmd_list)
+#for cmd in cmd_list:
+#    call_cmd(cmd)
+#
+Parallel(n_jobs=20)(delayed(call_cmd)(cmd) for cmd in cmd_list)
