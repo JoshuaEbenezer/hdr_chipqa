@@ -1,0 +1,16 @@
+sbatch samespace_difftemp_ythfr_scripts/job_0.script
+sbatch samespace_difftemp_ythfr_scripts/job_1.script
+sbatch samespace_difftemp_ythfr_scripts/job_2.script
+sbatch samespace_difftemp_ythfr_scripts/job_3.script
+sbatch samespace_difftemp_ythfr_scripts/job_4.script
+sbatch samespace_difftemp_ythfr_scripts/job_5.script
+sbatch samespace_difftemp_ythfr_scripts/job_6.script
+sbatch samespace_difftemp_ythfr_scripts/job_7.script
+sbatch samespace_difftemp_ythfr_scripts/job_8.script
+sbatch samespace_difftemp_ythfr_scripts/job_9.script
+sbatch samespace_difftemp_ythfr_scripts/job_10.script
+sbatch samespace_difftemp_ythfr_scripts/job_11.script
+sbatch samespace_difftemp_ythfr_scripts/job_12.script
+sbatch samespace_difftemp_ythfr_scripts/job_13.script
+sbatch samespace_difftemp_ythfr_scripts/job_14.script
+sbatch samespace_difftemp_ythfr_scripts/job_15.script

@@ -1,0 +1,64 @@
+/tmp/slurmd/job192974/slurm_script: line 10: env/bin/activate: No such file or directory
+
+CommandNotFoundError: Your shell has not been properly configured to use 'conda activate'.
+To initialize your shell, run
+
+    $ conda init <SHELL_NAME>
+
+Currently supported shells are:
+  - bash
+  - fish
+  - tcsh
+  - xonsh
+  - zsh
+  - powershell
+
+See 'conda init --help' for more information and options.
+
+IMPORTANT: You may need to close and restart your shell after running 'conda init'.
+
+
+TACC:  Starting up job 192974 
+TACC:  Starting parallel tasks... 
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {YTHFR,ETRI}]
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {ETRI,YTHFR}]
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {YTHFR,ETRI}]
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {ETRI,YTHFR}]
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {YTHFR,ETRI}]
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {YTHFR,ETRI}]
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {ETRI,YTHFR}]
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {YTHFR,ETRI}]
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {ETRI,YTHFR}]
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+usage: tacc_obtain.py [-h] [--input_folder INPUT_FOLDER]
+                      [--results_folder RESULTS_FOLDER] [--step {10,20,5,30}]
+                      [--database {YTHFR,ETRI}]
+tacc_obtain.py: error: argument --step: invalid choice: 11 (choose from 10, 20, 5, 30)
+TACC:  MPI job exited with code: 2 
+TACC:  Shutdown complete. Exiting. 

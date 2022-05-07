@@ -45,7 +45,8 @@ def results(all_preds,all_dmos):
 
 scores_df = pd.read_csv(args.score_file)
 video_names = scores_df['video']
-scores = scores_df['mos']
+scores = scores_df['dark_mos']
+scores_df['content'] = [v.split('_')[2] for v in scores_df['video']]
 srocc_list = []
 
 def trainval_split(trainval_content,r):
