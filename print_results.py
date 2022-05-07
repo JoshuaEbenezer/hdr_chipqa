@@ -3,7 +3,7 @@ import os
 import glob
 import pandas as pd
 
-result_files = glob.glob('./ythfr_results/*')
+result_files = glob.glob('./results/*')
 max_srcc = 0
 
 for f in result_files:

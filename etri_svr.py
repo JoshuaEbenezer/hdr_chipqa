@@ -79,13 +79,13 @@ def trainval_split(trainval_content,r,feature_folder):
         score = scores[i]
         feature_folder1= '../../hdr_chipqa/features/etri_fullhdrchipqa'
         feature_folder2= './etri_hdrchipqa_rgbc1e-2/'
-        feature_folder3= './etri_samespace_difftemp_chips/'
+        feature_folder3= './etri_samespace_difftemp_chips/5'
         feat_file1= load(os.path.join(feature_folder1,featfile_name))
         feat_file2 = load(os.path.join(feature_folder2,featfile_name))
         feature1 = np.asarray(feat_file1['features'],dtype=np.float32)
         feature2 = np.asarray(feat_file2['features'],dtype=np.float32)
         feature = np.concatenate((feature1[0:72],feature1[84:156],feature1[168:],feature2),0)
-        feat_file= load(os.path.join(feature_folder,featfile_name))
+        feat_file= load(os.path.join(feature_folder3,featfile_name))
         feature3 = np.asarray(feat_file['features'],dtype=np.float32)
         feature = np.concatenate((feature,feature3[-36:]),0)
 
@@ -224,25 +224,25 @@ def only_test(r):
 #print(srocc_list)
 feature_folders1 = glob.glob('./etri_multiple_length_chips/*')
 f = '../../hdr_chipqa/features/etri_fullhdrchipqa'
-for f in feature_folders1:
-    base = os.path.splitext(os.path.basename(f))[0]
-    out_csv = 'results/'+base+'_linear_combined_etri_variablechipqa_srcc_lcc_rmse_list.csv'
-    if(os.path.exists(out_csv)):
-        print('output exists')
-    else:
-        srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i,f) for i in range(100))
-        srcc_csv = pd.DataFrame(srocc_list,columns=['srcc','lcc','rmse','names'])
-        srcc_csv.to_csv(out_csv)
-        srocc_list = np.nan_to_num(srocc_list)
-        print("median srocc is")
-        print(np.median([s[0] for s in srocc_list]))
-        print("median lcc is")
-        print(np.median([s[1] for s in srocc_list]))
-        print("median rmse is")
-        print(np.median([s[2] for s in srocc_list]))
-        print("std of srocc is")
-        print(np.std([s[0] for s in srocc_list]))
-        print("std of lcc is")
-        print(np.std([s[1] for s in srocc_list]))
-        print("std of rmse is")
-        print(np.std([s[2] for s in srocc_list]))
+#for f in feature_folders1:
+base = os.path.splitext(os.path.basename(f))[0]
+out_csv = 'results/'+base+'_linear_variabletime_etri_variablechipqa_srcc_lcc_rmse_list.csv'
+if(os.path.exists(out_csv)):
+    print('output exists')
+else:
+    srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i,f) for i in range(100))
+    srcc_csv = pd.DataFrame(srocc_list,columns=['srcc','lcc','rmse','names'])
+    srcc_csv.to_csv(out_csv)
+    srocc_list = np.nan_to_num(srocc_list)
+    print("median srocc is")
+    print(np.median([s[0] for s in srocc_list]))
+    print("median lcc is")
+    print(np.median([s[1] for s in srocc_list]))
+    print("median rmse is")
+    print(np.median([s[2] for s in srocc_list]))
+    print("std of srocc is")
+    print(np.std([s[0] for s in srocc_list]))
+    print("std of lcc is")
+    print(np.std([s[1] for s in srocc_list]))
+    print("std of rmse is")
+    print(np.std([s[2] for s in srocc_list]))

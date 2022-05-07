@@ -131,7 +131,11 @@ def grid_search_rbf(gamma_list,C_list,trainval_content,feature_folder):
     return best_C,best_gamma
 
 def train_test(r,feature_folder):
+<<<<<<< HEAD
     kernel = 'rbf'
+=======
+    kernel = 'linear'
+>>>>>>> e21d44ef5eadb24093d8c70b2b9f39d0432f5cc1
     train_features,train_scores,test_features,test_scores,trainval_content,test_names = \
         trainval_split(scores_df['content'].unique(),r,feature_folder)
     if(kernel=='linear'):
@@ -202,6 +206,7 @@ def only_test(r):
 #    print(srocc_val)
     return #srocc_val
 
+<<<<<<< HEAD
 feature_folders1 = glob.glob('./ythfr_multiple_length_chips/*')
 #f = 'etri_samespace_difftemp_chips/5'
 for f in feature_folders1:
@@ -226,3 +231,29 @@ for f in feature_folders1:
         print(np.std([s[1] for s in srocc_list]))
         print("std of rmse is")
         print(np.std([s[2] for s in srocc_list]))
+=======
+#feature_folders1 = glob.glob('./ythfr_multiple_length_chips/*')
+f = './ythfr_samespace_difftemp_chips/5'
+#for f in feature_folders1:
+base = os.path.splitext(os.path.basename(f))[0]
+out_csv = 'ythfr_results/'+base+'_linear_ythfr_samespace_difftemp_chipqa_srcc_lcc_rmse_list.csv'
+if(os.path.exists(out_csv)):
+    print('output exists')
+else:
+    srocc_list = Parallel(n_jobs=-1,verbose=0)(delayed(train_test)(i,f) for i in range(100))
+    srcc_csv = pd.DataFrame(srocc_list,columns=['srcc','lcc','rmse','names'])
+    srcc_csv.to_csv(out_csv)
+    srocc_list = np.nan_to_num(srocc_list)
+    print("median srocc is")
+    print(np.median([s[0] for s in srocc_list]))
+    print("median lcc is")
+    print(np.median([s[1] for s in srocc_list]))
+    print("median rmse is")
+    print(np.median([s[2] for s in srocc_list]))
+    print("std of srocc is")
+    print(np.std([s[0] for s in srocc_list]))
+    print("std of lcc is")
+    print(np.std([s[1] for s in srocc_list]))
+    print("std of rmse is")
+    print(np.std([s[2] for s in srocc_list]))
+>>>>>>> e21d44ef5eadb24093d8c70b2b9f39d0432f5cc1
