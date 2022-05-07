@@ -58,7 +58,6 @@ def find_sts_locs(sts_slope,cy,cx,step,h,width):
 #@jit(nopython=True)
 def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,w,time_search_step):
     st_kurtosis = np.zeros((len(theta),))
-    min_kurtosis = 100
     for time_length in [5,10,20,30]:
         for index,t in enumerate(theta):
             rsin_theta = rst[:,index]
@@ -69,8 +68,6 @@ def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,w,time_search_step):
             data_mu4 = np.mean((data-np.mean(data))**4)
             data_var = np.var(data)
             st_kurtosis = data_mu4/(data_var**2+1e-4)
-            if(st_kurtosis<min_kurtosis):
-                best_block = np.reshape(data,(5,time_length))
     
     return best_block 
 

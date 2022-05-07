@@ -62,7 +62,7 @@ def find_sts_locs(sts_slope,cy,cx,step,h,width):
     return x_sts,y_sts
 
 
-#@jit(nopython=True)
+@jit(nopython=True)
 def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,w):
     st_kurtosis = np.zeros((len(theta),))
     min_kurtosis = 100
@@ -77,6 +77,7 @@ def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,w):
         st_kurtosis = data_mu4/(data_var**2+1e-4)
         if(st_kurtosis<min_kurtosis):
             best_block = Y3d_mscn[:,y_sts*w+x_sts]
+            min_kurtosis = st_kurtosis
     
     return best_block 
 
@@ -157,8 +158,8 @@ def hdrchipqa_fromvid(filename,filename_out,width,height,framenos,bit_depth,colo
 
 
     # ST chip centers and parameters
-    cy, cx = np.mgrid[step:full_size[0]:step, step:full_size[1]:step].reshape(2,-1).astype(int) # these will be the centers of each block
-    dcy, dcx = np.mgrid[step:dsize[0]:step, step:dsize[1]:step].reshape(2,-1).astype(int) # these will be the centers of each block
+    cy, cx = np.mgrid[step:full_size[0]-step:step, step:full_size[1]-step:step].reshape(2,-1).astype(int) # these will be the centers of each block
+    dcy, dcx = np.mgrid[step:dsize[0]-step:step, step:dsize[1]-step:step].reshape(2,-1).astype(int) # these will be the centers of each block
 
     
 

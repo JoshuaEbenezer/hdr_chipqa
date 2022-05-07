@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH -n 10
+#SBATCH -o eval3.log
+#SBATCH -J eval3
+#SBATCH -p normal
+#SBATCH -t 02:15:00
+#SBATCH --mail-user=joshuaebenezer@utexas.edu
+#SBATCH --mail-type=all
+source env/bin/activate
+
+conda activate hdr_chipqa
+
+module load python3
+
+ibrun -n 10  python3 tacc_obtain.py --input_folder /scratch/08176/jebeneze/spring22/fourth_quarter  --results_folder /work/08176/jebeneze/ls6/code/production_hdr_chipqa/spring22_features/  
+            

@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH -n 10
+#SBATCH -o /work/08176/jebeneze/ls6/code/variable_length_chipqa/eval/ythfr_eval10.log
+#SBATCH -J /work/08176/jebeneze/ls6/code/variable_length_chipqa/eval/ythfr_eval10
+#SBATCH -p normal
+#SBATCH -t 03:15:00
+#SBATCH --mail-user=joshuaebenezer@utexas.edu
+#SBATCH --mail-type=all
+source env/bin/activate
+
+conda activate hdr_chipqa
+
+module load python3
+
+ibrun -n 10  python3 tacc_obtain.py --input_folder /scratch/08176/jebeneze/YTHFR/second_quarter  --results_folder /work/08176/jebeneze/ls6/code/variable_length_chipqa/ythfr_multiple_length_chips --time_length 30 --step 5 --database YTHFR
+            
