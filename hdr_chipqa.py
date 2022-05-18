@@ -42,20 +42,6 @@ def spatiotemporal_mscn(img_buffer,avg_window,extend_mode='reflect'):
     return st_mean
 
 @jit(nopython=True)
-def find_sts_locs(sts_slope,cy,cx,step,h,width):
-    if(np.abs(sts_slope)<1):
-        x_sts = np.arange(cx-int((step-1)/2),cx+int((step-1)/2)+1)
-        y = (cy-(x_sts-cx)*sts_slope).astype(np.int64)
-        y_sts = np.asarray([y[j] if y[j]<h else h-1 for j in range(step)])
-    else:
-        #        print(np.abs(sts_slope))
-        y_sts = np.arange(cy-int((step-1)/2),cy+int((step-1)/2)+1)
-        x= ((-y_sts+cy)/sts_slope+cx).astype(np.int64)
-        x_sts = np.asarray([x[j] if x[j]<width else width-1 for j in range(step)]) 
-    return x_sts,y_sts
-
-
-@jit(nopython=True)
 def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,h,step):
     st_kurtosis = np.zeros((len(theta),))
     data = np.zeros((len(theta),step**2))
@@ -76,9 +62,9 @@ def find_kurtosis_slice(Y3d_mscn,cy,cx,rst,rct,theta,h,step):
 
 def find_kurtosis_sts(grad_img_buffer,step,cy,cx,rst,rct,theta):
 
-    h = grad_img_buffer[step-1].shape[0]
+    w = grad_img_buffer[step-1].shape[1]
     gradY3d_mscn = np.reshape(grad_img_buffer.copy(),(step,-1))
-    sts_grad= [find_kurtosis_slice(gradY3d_mscn,cy[i],cx[i],rst,rct,theta,h,step) for i in range(len(cy))]
+    sts_grad= [find_kurtosis_slice(gradY3d_mscn,cy[i],cx[i],rst,rct,theta,w,step) for i in range(len(cy))]
 
     return sts_grad
 
