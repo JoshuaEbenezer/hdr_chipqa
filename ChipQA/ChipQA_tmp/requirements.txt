@@ -1,0 +1,9 @@
+joblib 
+numpy
+cv2
+queue
+scipy.ndimage
+sys
+matplotlib
+numba 
+argparse

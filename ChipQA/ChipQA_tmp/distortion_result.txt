@@ -1,0 +1,78 @@
+median srocc is
+0.8513931888544891
+median lcc is
+0.9040167363717853
+median rmse is
+5.027270786105364
+std of srocc is
+0.08307591923337719
+std of lcc is
+0.05067276002609428
+std of rmse is
+1.1868338674515975
+above is for distortion  j
+median srocc is
+0.7481940144478844
+median lcc is
+0.8408036710793219
+median rmse is
+7.074694535406241
+std of srocc is
+0.12913163207643533
+std of lcc is
+0.11047279064845215
+std of rmse is
+1.9234610844790303
+above is for distortion  c
+median srocc is
+0.8111455108359134
+median lcc is
+0.8586660326753732
+median rmse is
+5.311892001097531
+std of srocc is
+0.09860883711188118
+std of lcc is
+0.06868386999516346
+std of rmse is
+1.110999128705551
+above is for distortion  i
+median srocc is
+0.7667698658410733
+median lcc is
+0.8609718859588241
+median rmse is
+5.293580208573994
+std of srocc is
+0.11805399330167006
+std of lcc is
+0.09800561729200828
+std of rmse is
+1.5169047312150212
+above is for distortion  f
+median srocc is
+0.7894736842105263
+median lcc is
+0.8473258326275195
+median rmse is
+4.6918005760820405
+std of srocc is
+0.11614258386064562
+std of lcc is
+0.10959699907574594
+std of rmse is
+1.2654354435503756
+above is for distortion  d
+median srocc is
+0.7997936016511867
+median lcc is
+0.9612856684327937
+median rmse is
+4.111667979059172
+std of srocc is
+0.11746006755263218
+std of lcc is
+0.0447100648756749
+std of rmse is
+1.1871466252604674
+above is for distortion  a
